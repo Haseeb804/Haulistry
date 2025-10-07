@@ -16,6 +16,8 @@ import '../screens/seeker/edit_profile_screen.dart';
 import '../screens/seeker/favorites_screen.dart';
 import '../screens/seeker/settings_screen.dart' as seeker_settings;
 import '../screens/provider/provider_dashboard_screen.dart';
+import '../screens/provider/provider_details_screen.dart';
+import '../screens/provider/vehicle_details_screen.dart';
 import '../screens/provider/services_management_screen.dart';
 import '../screens/provider/add_edit_service_screen.dart';
 import '../screens/provider/booking_requests_screen.dart';
@@ -137,6 +139,16 @@ class AppRouter {
       ),
       
       // Provider Routes
+      GoRoute(
+        path: '/provider/details',
+        name: 'provider-details',
+        builder: (context, state) => const ProviderDetailsScreen(),
+      ),
+      GoRoute(
+        path: '/provider/vehicle-details',
+        name: 'vehicle-details',
+        builder: (context, state) => const VehicleDetailsScreen(),
+      ),
       GoRoute(
         path: '/provider/dashboard',
         name: 'provider-dashboard',

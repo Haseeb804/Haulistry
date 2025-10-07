@@ -98,11 +98,12 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
           ),
         );
 
-        // Navigate to dashboard
+        // Navigate to appropriate screen
         if (widget.role == AppConstants.roleSeeker) {
           context.go('/seeker/dashboard');
         } else {
-          context.go('/provider/dashboard');
+          // Provider needs to fill additional details
+          context.go('/provider/details');
         }
       }
     }

@@ -13,24 +13,70 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
-  // Controllers
+  // Controllers - Personal & Business Information
   final _nameController = TextEditingController(text: 'Ali Traders');
   final _businessNameController = TextEditingController(text: 'Ali Agricultural Services');
   final _emailController = TextEditingController(text: 'ali.traders@example.com');
   final _phoneController = TextEditingController(text: '+92 300 1234567');
-  final _addressController = TextEditingController(text: 'Main Street, Faisalabad, Punjab');
+  final _cnicController = TextEditingController(text: '12345-1234567-1');
+  final _experienceController = TextEditingController(text: '5');
+  final _addressController = TextEditingController(text: 'Main Street, Faisalabad');
   final _cityController = TextEditingController(text: 'Faisalabad');
-  final _registrationController = TextEditingController(text: 'REG-2024-001');
   final _descriptionController = TextEditingController(
     text: 'Professional agricultural equipment provider with 5+ years of experience',
   );
+  
+  // Controllers - Vehicle Information
+  final _vehicleNameController = TextEditingController(text: 'Heavy Duty Harvester');
+  final _makeController = TextEditingController(text: 'John Deere');
+  final _modelController = TextEditingController(text: '9RX');
+  final _yearController = TextEditingController(text: '2023');
+  final _registrationController = TextEditingController(text: 'LHR-5678');
+  final _capacityController = TextEditingController(text: '500 HP');
+  final _priceController = TextEditingController(text: '5000');
 
-  String _selectedBusinessType = 'Sole Proprietorship';
-  final List<String> _businessTypes = [
-    'Sole Proprietorship',
-    'Partnership',
-    'Private Limited',
-    'Public Limited',
+  String? _selectedProvince = 'Punjab';
+  String? _selectedServiceType = 'Agricultural Machinery';
+  String? _selectedVehicleType = 'Harvester';
+  String? _selectedCondition = 'Excellent';
+  bool _hasInsurance = true;
+  bool _isAvailable = true;
+  
+  final List<String> _provinces = [
+    'Punjab',
+    'Sindh',
+    'Khyber Pakhtunkhwa',
+    'Balochistan',
+    'Gilgit-Baltistan',
+    'Azad Kashmir',
+  ];
+  
+  final List<String> _serviceTypes = [
+    'Heavy Machinery',
+    'Transport Services',
+    'Construction Equipment',
+    'Agricultural Machinery',
+    'Logistics & Cargo',
+  ];
+  
+  final List<String> _vehicleTypes = [
+    'Harvester',
+    'Tractor',
+    'Crane',
+    'Excavator',
+    'Bulldozer',
+    'Loader',
+    'Dump Truck',
+    'Concrete Mixer',
+    'Forklift',
+    'Other',
+  ];
+  
+  final List<String> _conditions = [
+    'Excellent',
+    'Good',
+    'Fair',
+    'Average',
   ];
 
   @override
@@ -39,10 +85,18 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     _businessNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
+    _cnicController.dispose();
+    _experienceController.dispose();
     _addressController.dispose();
     _cityController.dispose();
-    _registrationController.dispose();
     _descriptionController.dispose();
+    _vehicleNameController.dispose();
+    _makeController.dispose();
+    _modelController.dispose();
+    _yearController.dispose();
+    _registrationController.dispose();
+    _capacityController.dispose();
+    _priceController.dispose();
     super.dispose();
   }
 
@@ -214,25 +268,57 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                         },
                       ),
                       SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _cnicController,
+                        label: 'CNIC Number',
+                        icon: Icons.credit_card,
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter CNIC number';
+                          }
+                          if (value!.length < 13) {
+                            return 'Please enter valid CNIC number';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 16),
                       _buildDropdown(
-                        label: 'Business Type',
+                        label: 'Service Type',
                         icon: Icons.category,
-                        value: _selectedBusinessType,
-                        items: _businessTypes,
-                        onChanged: (value) => setState(() => _selectedBusinessType = value!),
+                        value: _selectedServiceType,
+                        items: _serviceTypes,
+                        onChanged: (value) => setState(() => _selectedServiceType = value),
                       ),
                       SizedBox(height: 16),
                       _buildTextField(
-                        controller: _registrationController,
-                        label: 'Registration Number',
-                        icon: Icons.numbers,
+                        controller: _experienceController,
+                        label: 'Years of Experience',
+                        icon: Icons.work_history,
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter experience';
+                          }
+                          return null;
+                        },
                       ),
                       SizedBox(height: 16),
                       _buildTextField(
                         controller: _descriptionController,
                         label: 'Business Description',
                         icon: Icons.description,
-                        maxLines: 3,
+                        maxLines: 4,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter description';
+                          }
+                          if (value!.length < 50) {
+                            return 'Description should be at least 50 characters';
+                          }
+                          return null;
+                        },
                       ),
                     ]),
 
@@ -242,6 +328,19 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                     _buildSectionTitle('Location'),
                     SizedBox(height: 12),
                     _buildFormCard([
+                      _buildTextField(
+                        controller: _addressController,
+                        label: 'Business Address',
+                        icon: Icons.location_on,
+                        maxLines: 2,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter address';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 16),
                       _buildTextField(
                         controller: _cityController,
                         label: 'City',
@@ -254,17 +353,163 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                         },
                       ),
                       SizedBox(height: 16),
+                      _buildDropdown(
+                        label: 'Province',
+                        icon: Icons.map,
+                        value: _selectedProvince,
+                        items: _provinces,
+                        onChanged: (value) => setState(() => _selectedProvince = value),
+                      ),
+                    ]),
+
+                    SizedBox(height: 24),
+
+                    // Vehicle Information
+                    _buildSectionTitle('Vehicle / Equipment Details'),
+                    SizedBox(height: 12),
+                    _buildFormCard([
+                      _buildDropdown(
+                        label: 'Vehicle Type',
+                        icon: Icons.agriculture,
+                        value: _selectedVehicleType,
+                        items: _vehicleTypes,
+                        onChanged: (value) => setState(() => _selectedVehicleType = value),
+                      ),
+                      SizedBox(height: 16),
                       _buildTextField(
-                        controller: _addressController,
-                        label: 'Complete Address',
-                        icon: Icons.location_on,
-                        maxLines: 2,
+                        controller: _vehicleNameController,
+                        label: 'Vehicle Name',
+                        icon: Icons.directions_car,
                         validator: (value) {
                           if (value?.isEmpty ?? true) {
-                            return 'Please enter address';
+                            return 'Please enter vehicle name';
                           }
                           return null;
                         },
+                      ),
+                      SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _makeController,
+                              label: 'Make',
+                              icon: Icons.precision_manufacturing,
+                              validator: (value) {
+                                if (value?.isEmpty ?? true) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _modelController,
+                              label: 'Model',
+                              icon: Icons.model_training,
+                              validator: (value) {
+                                if (value?.isEmpty ?? true) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _yearController,
+                              label: 'Year',
+                              icon: Icons.calendar_today,
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value?.isEmpty ?? true) {
+                                  return 'Required';
+                                }
+                                final year = int.tryParse(value!);
+                                if (year == null || year < 1900 || year > DateTime.now().year + 1) {
+                                  return 'Invalid year';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          SizedBox(width: 16),
+                          Expanded(
+                            child: _buildTextField(
+                              controller: _registrationController,
+                              label: 'Registration No.',
+                              icon: Icons.assignment,
+                              validator: (value) {
+                                if (value?.isEmpty ?? true) {
+                                  return 'Required';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 16),
+                      _buildDropdown(
+                        label: 'Condition',
+                        icon: Icons.check_circle_outline,
+                        value: _selectedCondition,
+                        items: _conditions,
+                        onChanged: (value) => setState(() => _selectedCondition = value),
+                      ),
+                      SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _capacityController,
+                        label: 'Capacity / Load',
+                        icon: Icons.fitness_center,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter capacity';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      _buildTextField(
+                        controller: _priceController,
+                        label: 'Price per Hour (PKR)',
+                        icon: Icons.attach_money,
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Please enter price';
+                          }
+                          final price = double.tryParse(value!);
+                          if (price == null || price <= 0) {
+                            return 'Please enter valid price';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      _buildSwitchTile(
+                        icon: Icons.security,
+                        title: 'Insurance',
+                        subtitle: 'Vehicle has valid insurance',
+                        value: _hasInsurance,
+                        onChanged: (value) => setState(() => _hasInsurance = value),
+                        activeColor: AppColors.primary,
+                      ),
+                      SizedBox(height: 12),
+                      _buildSwitchTile(
+                        icon: Icons.check_circle,
+                        title: 'Available for Booking',
+                        subtitle: 'Customers can book this vehicle',
+                        value: _isAvailable,
+                        onChanged: (value) => setState(() => _isAvailable = value),
+                        activeColor: Colors.green,
                       ),
                     ]),
 
@@ -397,7 +642,7 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
   Widget _buildDropdown({
     required String label,
     required IconData icon,
-    required String value,
+    required String? value,
     required List<String> items,
     required void Function(String?) onChanged,
   }) {
@@ -428,6 +673,69 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
         );
       }).toList(),
       onChanged: onChanged,
+    );
+  }
+
+  Widget _buildSwitchTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required void Function(bool) onChanged,
+    required Color activeColor,
+  }) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: activeColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: activeColor,
+              size: 24,
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeColor: activeColor,
+          ),
+        ],
+      ),
     );
   }
 
