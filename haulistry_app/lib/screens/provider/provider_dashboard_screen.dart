@@ -315,10 +315,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             children: [
               Expanded(
                 child: _buildActionButton(
-                  'Add Service',
-                  Icons.add_circle,
-                  AppColors.primary,
-                  () => context.push('/provider/add-service'),
+                  'Vehicles',
+                  Icons.directions_car,
+                  Colors.purple,
+                  () => context.push('/provider/vehicles'),
                 ),
               ),
               SizedBox(width: 12),
@@ -337,19 +337,19 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             children: [
               Expanded(
                 child: _buildActionButton(
-                  'Earnings',
-                  Icons.account_balance_wallet,
-                  Colors.green,
-                  () => context.push('/provider/earnings'),
+                  'Add Service',
+                  Icons.add_circle,
+                  AppColors.primary,
+                  () => context.push('/provider/add-service'),
                 ),
               ),
               SizedBox(width: 12),
               Expanded(
                 child: _buildActionButton(
-                  'Reviews',
-                  Icons.star,
-                  Colors.amber,
-                  () => context.push('/provider/reviews'),
+                  'Earnings',
+                  Icons.account_balance_wallet,
+                  Colors.green,
+                  () => context.push('/provider/earnings'),
                 ),
               ),
             ],

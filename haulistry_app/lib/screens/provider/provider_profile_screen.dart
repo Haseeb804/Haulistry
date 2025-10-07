@@ -60,12 +60,17 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     padding: EdgeInsets.all(16),
                     child: Row(
                       children: [
+                        IconButton(
+                          icon: Icon(Icons.arrow_back_ios, color: Colors.white),
+                          onPressed: () => context.pop(),
+                        ),
                         Text(
                           'Profile',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            
                           ),
                         ),
                         Spacer(),

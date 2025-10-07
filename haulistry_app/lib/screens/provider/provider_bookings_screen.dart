@@ -155,6 +155,10 @@ class _ProviderBookingsScreenState extends State<ProviderBookingsScreen>
                     padding: EdgeInsets.all(16),
                     child: Row(
                       children: [
+                        IconButton(
+                          icon: Icon(Icons.arrow_back_ios, color: Colors.white),
+                          onPressed: () => context.pop(),
+                        ),
                         Expanded(
                           child: Text(
                             'My Bookings',

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
+import '../../providers/vehicle_provider.dart';
+import '../../models/vehicle_model.dart';
 
 class VehicleDetailsScreen extends StatefulWidget {
   const VehicleDetailsScreen({super.key});
@@ -58,25 +61,62 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
 
   void _handleComplete() {
     if (_formKey.currentState!.validate()) {
-      // Save vehicle details (will integrate with provider later)
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.white),
-              SizedBox(width: 12),
-              Text('Profile setup completed successfully!'),
-            ],
-          ),
-          backgroundColor: Colors.green.shade600,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
+      // Create vehicle object
+      final vehicle = Vehicle(
+        id: 'VEH${DateTime.now().millisecondsSinceEpoch}',
+        vehicleType: _selectedVehicleType!,
+        vehicleName: _vehicleNameController.text,
+        make: _makeController.text,
+        model: _modelController.text,
+        year: int.parse(_yearController.text),
+        registrationNumber: _registrationController.text,
+        condition: _selectedCondition!,
+        capacity: _capacityController.text,
+        pricePerHour: double.parse(_priceController.text),
+        hasInsurance: _hasInsurance,
+        isAvailable: _isAvailable,
       );
-      
-      // Navigate to provider dashboard
-      context.go('/provider/dashboard');
+
+      // Add vehicle to provider
+      final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
+      vehicleProvider.addVehicle(vehicle).then((success) {
+        if (success) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Vehicle added successfully!'),
+                ],
+              ),
+              backgroundColor: Colors.green.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+          
+          // Show option to add more or go to dashboard
+          _showOnboardingOptions();
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.error, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text('Failed to add vehicle'),
+                ],
+              ),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      });
     }
   }
 
@@ -482,14 +522,14 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Complete Setup',
+                        'Add Vehicle',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       SizedBox(width: 8),
-                      Icon(Icons.check, size: 20),
+                      Icon(Icons.arrow_forward, size: 20),
                     ],
                   ),
                 ),
@@ -617,6 +657,81 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
           onChanged: onChanged,
         ),
       ],
+    );
+  }
+
+  void _showOnboardingOptions() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 28),
+            SizedBox(width: 12),
+            Text('Vehicle Added!'),
+          ],
+        ),
+        content: const Text(
+          'Your vehicle has been added successfully. Would you like to add another vehicle or go to dashboard?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              // Reset form for next vehicle
+              _resetForm();
+            },
+            child: const Text('Add Another'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              context.go('/provider/dashboard');
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Go to Dashboard'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _resetForm() {
+    _formKey.currentState?.reset();
+    _vehicleNameController.clear();
+    _makeController.clear();
+    _modelController.clear();
+    _yearController.clear();
+    _registrationController.clear();
+    _capacityController.clear();
+    _priceController.clear();
+    setState(() {
+      _selectedVehicleType = null;
+      _selectedCondition = null;
+      _hasInsurance = false;
+      _isAvailable = true;
+    });
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.info, color: Colors.white),
+            SizedBox(width: 12),
+            Text('Ready to add another vehicle'),
+          ],
+        ),
+        backgroundColor: AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+      ),
     );
   }
 }
