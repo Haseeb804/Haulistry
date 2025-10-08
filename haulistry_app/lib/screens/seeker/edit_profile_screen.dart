@@ -213,6 +213,51 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             ),
                           ]),
 
+                          SizedBox(height: 24),
+
+                          // Service Preferences
+                          _buildSectionTitle('Service Preferences'),
+                          SizedBox(height: 16),
+
+                          _buildFormCard([
+                            ListTile(
+                              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              leading: Container(
+                                padding: EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.settings_suggest,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                              title: Text(
+                                'Manage Service Preferences',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              subtitle: Text(
+                                'Update what services you need',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              trailing: Icon(
+                                Icons.arrow_forward_ios,
+                                size: 16,
+                                color: AppColors.textSecondary,
+                              ),
+                              onTap: () {
+                                context.push('/seeker/service-preferences');
+                              },
+                            ),
+                          ]),
+
                           SizedBox(height: 40),
 
                           // Save Button

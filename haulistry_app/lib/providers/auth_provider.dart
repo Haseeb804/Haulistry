@@ -45,16 +45,24 @@ class AuthProvider with ChangeNotifier {
       // Mock login - replace with actual API call
       if (email.isNotEmpty && password.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
+        
+        // Check if user exists (during signup, their role was saved)
+        // In a real app, this would come from the API response
+        String? savedRole = prefs.getString('${AppConstants.keyUserRole}_$email');
+        
+        // If no saved role exists for this email, check email pattern as fallback
+        if (savedRole == null) {
+          savedRole = email.contains('provider') 
+              ? AppConstants.roleProvider 
+              : AppConstants.roleSeeker;
+        }
+        
         await prefs.setBool(AppConstants.keyIsLoggedIn, true);
         await prefs.setString(AppConstants.keyUserToken, 'mock_token_123');
         await prefs.setString(AppConstants.keyUserId, 'user_123');
+        await prefs.setString(AppConstants.keyUserRole, savedRole);
         
-        // Determine role based on email (mock logic)
-        _userRole = email.contains('provider') 
-            ? AppConstants.roleProvider 
-            : AppConstants.roleSeeker;
-        await prefs.setString(AppConstants.keyUserRole, _userRole);
-
+        _userRole = savedRole;
         _isLoggedIn = true;
         _isLoading = false;
         notifyListeners();
@@ -88,6 +96,10 @@ class AuthProvider with ChangeNotifier {
 
       // Mock signup - replace with actual API call
       final prefs = await SharedPreferences.getInstance();
+      
+      // Save user role with email as key for future logins
+      await prefs.setString('${AppConstants.keyUserRole}_$email', role);
+      
       await prefs.setBool(AppConstants.keyIsLoggedIn, true);
       await prefs.setString(AppConstants.keyUserToken, 'mock_token_123');
       await prefs.setString(AppConstants.keyUserId, 'user_123');

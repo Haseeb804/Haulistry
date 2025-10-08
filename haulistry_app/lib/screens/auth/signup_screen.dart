@@ -100,7 +100,8 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
 
         // Navigate to appropriate screen
         if (widget.role == AppConstants.roleSeeker) {
-          context.go('/seeker/dashboard');
+          // Seeker needs to set service preferences
+          context.go('/seeker/service-preferences');
         } else {
           // Provider needs to fill additional details
           context.go('/provider/details');

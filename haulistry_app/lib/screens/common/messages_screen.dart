@@ -148,34 +148,62 @@ class _MessagesScreenState extends State<MessagesScreen> {
                     padding: EdgeInsets.fromLTRB(16, 0, 16, 20),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withOpacity(0.3),
                         borderRadius: BorderRadius.circular(25),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.5),
+                          width: 1,
+                        ),
                       ),
-                      child: TextField(
-                        controller: _searchController,
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        style: TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          hintText: 'Search messages...',
-                          hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                          prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.7)),
-                          suffixIcon: _searchQuery.isNotEmpty
-                              ? IconButton(
-                                  icon: Icon(Icons.clear, color: Colors.white.withOpacity(0.7)),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {
-                                      _searchQuery = '';
-                                    });
-                                  },
-                                )
-                              : null,
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      child: Theme(
+                        data: ThemeData(
+                          textSelectionTheme: TextSelectionThemeData(
+                            cursorColor: Colors.white,
+                            selectionColor: Colors.white.withOpacity(0.3),
+                            selectionHandleColor: Colors.white,
+                          ),
+                        ),
+                        child: TextField(
+                          controller: _searchController,
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value;
+                            });
+                          },
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            decoration: TextDecoration.none,
+                            decorationThickness: 0,
+                          ),
+                          cursorColor: Colors.white,
+                          cursorWidth: 2,
+                          decoration: InputDecoration(
+                            hintText: 'Search messages...',
+                            hintStyle: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 16,
+                              fontWeight: FontWeight.normal,
+                            ),
+                            prefixIcon: Icon(Icons.search, color: Colors.white, size: 24),
+                            suffixIcon: _searchQuery.isNotEmpty
+                                ? IconButton(
+                                    icon: Icon(Icons.clear, color: Colors.white, size: 20),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                      setState(() {
+                                        _searchQuery = '';
+                                      });
+                                    },
+                                  )
+                                : null,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            filled: false,
+                            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                          ),
                         ),
                       ),
                     ),

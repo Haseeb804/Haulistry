@@ -196,21 +196,41 @@ class _ServiceListingScreenState extends State<ServiceListingScreen> {
     final isSelected = _selectedFilter == label;
     return Padding(
       padding: EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: isSelected,
-        onSelected: (selected) {
+      child: GestureDetector(
+        onTap: () {
           setState(() => _selectedFilter = label);
         },
-        backgroundColor: Colors.white.withOpacity(0.2),
-        selectedColor: Colors.white,
-        labelStyle: TextStyle(
-          color: isSelected ? AppColors.primary : Colors.white,
-          fontWeight: FontWeight.w600,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide.none,
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.5),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected) ...[
+                Icon(
+                  Icons.check,
+                  size: 16,
+                  color: AppColors.primary,
+                ),
+                SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  color: isSelected ? AppColors.primary : Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
