@@ -238,7 +238,7 @@ class _ServiceListingScreenState extends State<ServiceListingScreen> {
 
   Widget _buildServiceCard(Map<String, dynamic> service) {
     return GestureDetector(
-      onTap: () => context.push('/seeker/service-detail/${service['id']}'),
+      onTap: () => context.push('/seeker/service/${service['id']}'),
       child: Container(
         margin: EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
@@ -430,7 +430,7 @@ class _ServiceListingScreenState extends State<ServiceListingScreen> {
                       ),
                       ElevatedButton(
                         onPressed: service['available']
-                            ? () => context.push('/seeker/service-detail/${service['id']}')
+                            ? () => context.push('/seeker/service/${service['id']}')
                             : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,

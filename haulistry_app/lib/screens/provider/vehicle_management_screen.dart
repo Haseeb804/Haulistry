@@ -109,7 +109,7 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.primary),
           onPressed: () => context.pop(),
         ),
         title: const Text(
@@ -173,19 +173,7 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
                     ),
                   ),
                   const SizedBox(height: 32),
-                  ElevatedButton.icon(
-                    onPressed: () => context.push('/provider/add-vehicle'),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Vehicle'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
+                  
                 ],
               ),
             );

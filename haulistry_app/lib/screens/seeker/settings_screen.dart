@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
+import '../../providers/theme_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -14,7 +16,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _emailNotifications = false;
   bool _smsNotifications = true;
   bool _locationServices = true;
-  bool _darkMode = false;
   bool _autoBackup = true;
   String _language = 'English';
   String _currency = 'PKR';
@@ -31,21 +32,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'icon': Icons.security,
       'title': 'Privacy & Security',
       'subtitle': 'Manage your privacy settings',
-      'route': '/seeker/privacy',
+      'route': '/privacy-security',
       'color': Colors.green,
     },
     {
       'icon': Icons.payment,
       'title': 'Payment Settings',
       'subtitle': 'Manage payment methods',
-      'route': '/seeker/payment-settings',
+      'route': '/payment-settings',
       'color': Colors.orange,
     },
     {
       'icon': Icons.location_on,
       'title': 'Location Settings',
       'subtitle': 'Manage location preferences',
-      'route': '/seeker/location-settings',
+      'route': '/location-settings',
       'color': Colors.red,
     },
   ];
@@ -86,7 +87,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       'icon': Icons.help,
       'title': 'Help Center',
       'subtitle': 'Get help and support',
-      'route': '/help',
+      'route': '/help-center',
       'color': Colors.cyan,
     },
     {
@@ -270,14 +271,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: Colors.orange,
           ),
           Divider(height: 1),
-          _buildSwitchTile(
-            icon: Icons.dark_mode,
-            title: 'Dark Mode',
-            subtitle: 'Use dark theme',
-            value: _darkMode,
-            onChanged: (value) => setState(() => _darkMode = value),
-            color: Colors.purple,
-            isLast: true,
+          Consumer<ThemeProvider>(
+            builder: (context, themeProvider, _) {
+              return _buildSwitchTile(
+                icon: Icons.dark_mode,
+                title: 'Dark Mode',
+                subtitle: 'Use dark theme',
+                value: themeProvider.isDarkMode,
+                onChanged: (value) {
+                  themeProvider.setDarkMode(value);
+                },
+                color: Colors.purple,
+                isLast: true,
+              );
+            },
           ),
         ],
       ),

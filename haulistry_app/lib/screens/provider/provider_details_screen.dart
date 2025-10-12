@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../../utils/app_colors.dart';
 
 class ProviderDetailsScreen extends StatefulWidget {
@@ -26,7 +26,7 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
   String? _selectedServiceType;
   
   // Profile picture
-  File? _profileImage;
+  XFile? _profileImage;
   final ImagePicker _imagePicker = ImagePicker();
   
   // Document upload states
@@ -70,8 +70,133 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
     }
   }
 
+  void _showSkipConfirmation() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Expanded(child: Text('Skip setup?', style: TextStyle(fontSize: 20))),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You can complete your business profile later, but note:',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+            SizedBox(height: 12),
+            _buildWarningItem('❌', 'You won\'t receive booking requests'),
+            _buildWarningItem('⚠️', 'Customers won\'t find your services'),
+            _buildWarningItem('📊', 'Your profile will be incomplete'),
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.blue, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Takes only 5 minutes to complete!',
+                      style: TextStyle(fontSize: 12, color: Colors.blue.shade900, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Continue Setup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              context.go('/provider/dashboard');
+            },
+            child: Text('Skip Anyway', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper method to display XFile images on both web and mobile
+  Widget _buildXFileImage(XFile image, {
+    double? width,
+    double? height,
+    BoxFit fit = BoxFit.cover,
+  }) {
+    return Image.network(
+      image.path,
+      width: width,
+      height: height,
+      fit: fit,
+      errorBuilder: (context, error, stackTrace) {
+        return Container(
+          width: width,
+          height: height,
+          color: Colors.grey[300],
+          child: Icon(Icons.error, color: Colors.red),
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return Container(
+          width: width,
+          height: height,
+          color: Colors.grey[200],
+          child: Center(
+            child: CircularProgressIndicator(
+              value: loadingProgress.expectedTotalBytes != null
+                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  : null,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildWarningItem(String emoji, String text) {
+    return Padding(
+      padding: EdgeInsets.only(left: 8, bottom: 8),
+      child: Row(
+        children: [
+          Text(emoji, style: TextStyle(fontSize: 16)),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final canGoBack = ModalRoute.of(context)?.canPop ?? false;
+    
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -82,13 +207,28 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
           onPressed: () => context.pop(),
         ),
         title: const Text(
-          'Provider Details',
+          'Quick Business Setup',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
+        actions: [
+          if (canGoBack)
+            TextButton.icon(
+              onPressed: _showSkipConfirmation,
+              icon: Icon(Icons.skip_next, color: AppColors.primary, size: 20),
+              label: Text(
+                'Skip',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -167,8 +307,10 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
                                   ),
                                   child: ClipOval(
                                     child: _profileImage != null
-                                        ? Image.file(
+                                        ? _buildXFileImage(
                                             _profileImage!,
+                                            width: 120,
+                                            height: 120,
                                             fit: BoxFit.cover,
                                           )
                                         : Icon(
@@ -833,29 +975,22 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      // Request permissions
-      PermissionStatus permission;
-      if (source == ImageSource.camera) {
-        permission = await Permission.camera.request();
-      } else {
-        if (Platform.isAndroid) {
-          final androidInfo = await Permission.photos.status;
-          if (androidInfo.isDenied) {
-            permission = await Permission.photos.request();
-          } else {
-            permission = androidInfo;
-          }
+      // On web, permissions are handled by the browser
+      if (!kIsWeb) {
+        // Request permissions for mobile
+        PermissionStatus permission;
+        if (source == ImageSource.camera) {
+          permission = await Permission.camera.request();
         } else {
           permission = await Permission.photos.request();
         }
-      }
 
-      if (permission.isDenied) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
+        if (permission.isDenied) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
                   const Icon(Icons.warning, color: Colors.white),
                   const SizedBox(width: 12),
                   Expanded(
@@ -911,6 +1046,7 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
         }
         return;
       }
+      } // End of !kIsWeb block
 
       // Pick image
       final XFile? pickedFile = await _imagePicker.pickImage(
@@ -922,7 +1058,7 @@ class _ProviderDetailsScreenState extends State<ProviderDetailsScreen> {
 
       if (pickedFile != null) {
         setState(() {
-          _profileImage = File(pickedFile.path);
+          _profileImage = pickedFile;
         });
 
         if (mounted) {

@@ -35,6 +35,16 @@ import '../screens/common/messages_screen.dart';
 import '../screens/common/chat_screen.dart';
 import '../screens/common/settings_screen.dart';
 import '../screens/common/help_support_screen.dart';
+import '../screens/common/privacy_security_screen.dart';
+import '../screens/common/payment_settings_screen.dart';
+import '../screens/common/location_settings_screen.dart';
+import '../screens/common/about_screen.dart';
+import '../screens/common/help_center_screen.dart';
+import '../screens/common/privacy_policy_screen.dart';
+import '../screens/common/terms_of_service_screen.dart';
+import '../screens/provider/verify_account_screen.dart';
+import '../screens/provider/service_areas_screen.dart';
+import '../screens/provider/document_upload_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -266,6 +276,58 @@ class AppRouter {
         path: '/help-support',
         name: 'help-support',
         builder: (context, state) => const HelpSupportScreen(),
+      ),
+      
+      // New Settings Screens
+      GoRoute(
+        path: '/privacy-security',
+        name: 'privacy-security',
+        builder: (context, state) => const PrivacySecurityScreen(),
+      ),
+      GoRoute(
+        path: '/payment-settings',
+        name: 'payment-settings',
+        builder: (context, state) => const PaymentSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/location-settings',
+        name: 'location-settings',
+        builder: (context, state) => const LocationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/about',
+        name: 'about',
+        builder: (context, state) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: '/help-center',
+        name: 'help-center',
+        builder: (context, state) => const HelpCenterScreen(),
+      ),
+      GoRoute(
+        path: '/privacy-policy',
+        name: 'privacy-policy',
+        builder: (context, state) => const PrivacyPolicyScreen(),
+      ),
+      GoRoute(
+        path: '/terms-of-service',
+        name: 'terms-of-service',
+        builder: (context, state) => const TermsOfServiceScreen(),
+      ),
+      GoRoute(
+        path: '/provider/verification',
+        name: 'provider-verification',
+        builder: (context, state) => const VerifyAccountScreen(),
+      ),
+      GoRoute(
+        path: '/provider/service-areas',
+        name: 'provider-service-areas',
+        builder: (context, state) => const ServiceAreasScreen(),
+      ),
+      GoRoute(
+        path: '/provider/document-upload',
+        name: 'provider-document-upload',
+        builder: (context, state) => const DocumentUploadScreen(),
       ),
     ],
   );

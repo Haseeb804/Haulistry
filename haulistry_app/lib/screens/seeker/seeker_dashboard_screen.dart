@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_constants.dart';
+import '../../providers/seeker_preferences_provider.dart';
+import '../../providers/auth_provider.dart';
 
 class SeekerDashboardScreen extends StatefulWidget {
   const SeekerDashboardScreen({super.key});
@@ -12,6 +15,20 @@ class SeekerDashboardScreen extends StatefulWidget {
 
 class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
   int _selectedIndex = 0;
+  bool _showCompletionBanner = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkPreferences();
+  }
+
+  Future<void> _checkPreferences() async {
+    final authProvider = context.read<AuthProvider>();
+    final preferencesProvider = context.read<SeekerPreferencesProvider>();
+    
+    await preferencesProvider.loadPreferences(authProvider.currentUser?.id ?? 'user_123');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +117,87 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                     ),
                   ],
                 ),
+              ),
+              // Completion Banner (if preferences not set)
+              Consumer<SeekerPreferencesProvider>(
+                builder: (context, preferencesProvider, child) {
+                  if (preferencesProvider.hasPreferences() || !_showCompletionBanner) {
+                    return SizedBox.shrink();
+                  }
+                  
+                  return Container(
+                    margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
+                      ),
+                      borderRadius: BorderRadius.circular(15),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.orange.withOpacity(0.3),
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => context.push('/seeker/service-preferences'),
+                        borderRadius: BorderRadius.circular(15),
+                        child: Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(Icons.stars, color: Colors.white, size: 24),
+                              ),
+                              SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Get Better Matches! ✨',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    SizedBox(height: 4),
+                                    Text(
+                                      'Complete your profile • 2 min',
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.9),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+                              SizedBox(width: 4),
+                              IconButton(
+                                icon: Icon(Icons.close, color: Colors.white, size: 20),
+                                onPressed: () {
+                                  setState(() => _showCompletionBanner = false);
+                                },
+                                padding: EdgeInsets.zero,
+                                constraints: BoxConstraints(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
 
               // Content

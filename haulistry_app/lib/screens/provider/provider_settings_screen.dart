@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
+import '../../providers/theme_provider.dart';
 
 class ProviderSettingsScreen extends StatefulWidget {
   const ProviderSettingsScreen({super.key});
@@ -24,7 +26,6 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
   List<String> _workingDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
   // App Settings
-  bool _darkMode = false;
   String _language = 'English';
 
   @override
@@ -194,12 +195,16 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                   _buildSectionTitle('App Settings'),
                   SizedBox(height: 12),
                   _buildSettingsCard([
-                    _buildSwitchTile(
-                      'Dark Mode',
-                      'Enable dark theme',
-                      Icons.dark_mode,
-                      _darkMode,
-                      (value) => setState(() => _darkMode = value),
+                    Consumer<ThemeProvider>(
+                      builder: (context, themeProvider, _) {
+                        return _buildSwitchTile(
+                          'Dark Mode',
+                          'Enable dark theme',
+                          Icons.dark_mode,
+                          themeProvider.isDarkMode,
+                          (value) => themeProvider.setDarkMode(value),
+                        );
+                      },
                     ),
                     Divider(height: 1),
                     _buildNavTile(
@@ -224,11 +229,24 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                   SizedBox(height: 12),
                   _buildSettingsCard([
                     _buildNavTile(
-                      'Logout',
-                      'Sign out from your account',
-                      Icons.logout,
-                      () => _logout(),
-                      color: AppColors.primary,
+                      'Privacy & Security',
+                      'Manage privacy settings',
+                      Icons.security,
+                      () => context.push('/privacy-security'),
+                    ),
+                    Divider(height: 1),
+                    _buildNavTile(
+                      'Payment Settings',
+                      'Manage payment methods',
+                      Icons.payment,
+                      () => context.push('/payment-settings'),
+                    ),
+                    Divider(height: 1),
+                    _buildNavTile(
+                      'Location Settings',
+                      'Manage location preferences',
+                      Icons.location_on,
+                      () => context.push('/location-settings'),
                     ),
                     Divider(height: 1),
                     _buildNavTile(
@@ -243,6 +261,42 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                       'Complete business verification',
                       Icons.verified_user,
                       () => context.push('/provider/verification'),
+                    ),
+                  ]),
+
+                  SizedBox(height: 24),
+
+                  // Support
+                  _buildSectionTitle('Support & About'),
+                  SizedBox(height: 12),
+                  _buildSettingsCard([
+                    _buildNavTile(
+                      'Help Center',
+                      'Get help and support',
+                      Icons.help,
+                      () => context.push('/help-center'),
+                    ),
+                    Divider(height: 1),
+                    _buildNavTile(
+                      'About',
+                      'App version and info',
+                      Icons.info,
+                      () => context.push('/about'),
+                    ),
+                  ]),
+
+                  SizedBox(height: 24),
+
+                  // Dangerous Actions
+                  _buildSectionTitle('Account Actions'),
+                  SizedBox(height: 12),
+                  _buildSettingsCard([
+                    _buildNavTile(
+                      'Logout',
+                      'Sign out from your account',
+                      Icons.logout,
+                      () => _logout(),
+                      color: AppColors.primary,
                     ),
                     Divider(height: 1),
                     _buildNavTile(
@@ -260,19 +314,6 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                   _buildSectionTitle('Support & Legal'),
                   SizedBox(height: 12),
                   _buildSettingsCard([
-                    _buildNavTile(
-                      'Help Center',
-                      'Get help with your account',
-                      Icons.help_outline,
-                      () => context.push('/provider/help'),
-                    ),
-                    Divider(height: 1),
-                    _buildNavTile(
-                      'Contact Support',
-                      'Chat with our support team',
-                      Icons.support_agent,
-                      () => context.push('/provider/support'),
-                    ),
                     Divider(height: 1),
                     _buildNavTile(
                       'Privacy Policy',

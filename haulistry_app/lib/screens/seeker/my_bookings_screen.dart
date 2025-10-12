@@ -15,6 +15,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
   final List<Map<String, dynamic>> _upcomingBookings = [
     {
       'id': '1',
+      'serviceId': '101',
       'service': 'Harvester Service',
       'provider': 'John Doe Farming',
       'date': 'Oct 20, 2025',
@@ -26,6 +27,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
     },
     {
       'id': '2',
+      'serviceId': '102',
       'service': 'Sand Truck',
       'provider': 'ABC Transport',
       'date': 'Oct 22, 2025',
@@ -40,6 +42,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
   final List<Map<String, dynamic>> _inProgressBookings = [
     {
       'id': '3',
+      'serviceId': '103',
       'service': 'Crane Service',
       'provider': 'XYZ Construction',
       'date': 'Oct 1, 2025',
@@ -54,6 +57,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
   final List<Map<String, dynamic>> _completedBookings = [
     {
       'id': '4',
+      'serviceId': '101',
       'service': 'Harvester Service',
       'provider': 'John Doe Farming',
       'date': 'Sep 28, 2025',
@@ -65,6 +69,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
     },
     {
       'id': '5',
+      'serviceId': '104',
       'service': 'Brick Truck',
       'provider': 'DEF Logistics',
       'date': 'Sep 25, 2025',
@@ -79,6 +84,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
   final List<Map<String, dynamic>> _cancelledBookings = [
     {
       'id': '6',
+      'serviceId': '102',
       'service': 'Sand Truck',
       'provider': 'GHI Transport',
       'date': 'Sep 20, 2025',
@@ -125,8 +131,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
                 child: Row(
                   children: [
                     IconButton(
-                      icon: Icon(Icons.arrow_back_ios, color: Colors.white),
-                      onPressed: () => context.pop(),
+                      icon: Icon(Icons.arrow_back_ios_new, color: Colors.white),
+                      onPressed: () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/seeker/dashboard');
+                        }
+                      },
                     ),
                     Expanded(
                       child: Text(
@@ -475,14 +487,14 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
       return [
         Expanded(
           child: OutlinedButton(
-            onPressed: () {},
+            onPressed: () => context.push('/seeker/service/${booking['serviceId']}'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
-            child: Text('Download Invoice'),
+            child: Text('Book Again'),
           ),
         ),
         SizedBox(width: 8),
@@ -503,7 +515,7 @@ class _MyBookingsScreenState extends State<MyBookingsScreen> with SingleTickerPr
       return [
         Expanded(
           child: ElevatedButton(
-            onPressed: () {},
+            onPressed: () => context.push('/seeker/service/${booking['serviceId']}'),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               shape: RoundedRectangleBorder(

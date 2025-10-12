@@ -40,6 +40,69 @@ class _SeekerServicePreferencesScreenState extends State<SeekerServicePreference
     }
   }
 
+  void _showSkipConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Colors.orange, size: 28),
+            SizedBox(width: 12),
+            Text('Skip for now?', style: TextStyle(fontSize: 20)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'You can add your service preferences later from your profile.',
+              style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+            ),
+            SizedBox(height: 12),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.lightbulb_outline, color: Colors.blue, size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Tip: Adding preferences helps us show you better matches',
+                      style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Continue Setup', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+          ),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              context.go('/seeker/dashboard');
+            },
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.grey.shade300),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text('Skip', style: TextStyle(color: Colors.grey.shade600)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _notesController.dispose();
@@ -147,6 +210,8 @@ class _SeekerServicePreferencesScreenState extends State<SeekerServicePreference
 
   @override
   Widget build(BuildContext context) {
+    final canGoBack = ModalRoute.of(context)?.canPop ?? false;
+    
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: Column(
@@ -195,6 +260,19 @@ class _SeekerServicePreferencesScreenState extends State<SeekerServicePreference
                             ),
                           ),
                         ),
+                        if (canGoBack)
+                          TextButton.icon(
+                            onPressed: () => _showSkipConfirmation(context),
+                            icon: Icon(Icons.skip_next, color: Colors.white, size: 20),
+                            label: Text(
+                              'Skip',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                     SizedBox(height: 8),

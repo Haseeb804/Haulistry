@@ -22,7 +22,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   final ScrollController _scrollController = ScrollController();
   bool _isTyping = false;
   bool _isOnline = true;
+  bool _isRecording = false;
+  int _recordingSeconds = 0;
   late AnimationController _typingAnimationController;
+  AnimationController? _recordingAnimationController;
 
   // Mock chat data - replace with actual data from provider
   final List<Map<String, dynamic>> _messages = [
@@ -116,6 +119,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     _messageController.dispose();
     _scrollController.dispose();
     _typingAnimationController.dispose();
+    _recordingAnimationController?.dispose();
     super.dispose();
   }
 
@@ -147,7 +151,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               radius: 20,
               backgroundColor: Colors.white.withOpacity(0.2),
               child: Text(
-                widget.userName[0].toUpperCase(),
+                widget.userName.isNotEmpty ? widget.userName[0].toUpperCase() : 'U',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -161,7 +165,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.userName,
+                    widget.userName.isNotEmpty ? widget.userName : 'User',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -239,7 +243,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               radius: 16,
               backgroundColor: AppColors.primary.withOpacity(0.1),
               child: Text(
-                message['senderName'][0].toUpperCase(),
+                message['senderName'] != null && message['senderName'].toString().isNotEmpty 
+                    ? message['senderName'][0].toUpperCase() 
+                    : 'U',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -275,6 +281,8 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                     _buildImageMessage(message)
                   else if (message['type'] == 'location')
                     _buildLocationMessage(message, isMe)
+                  else if (message['type'] == 'voice')
+                    _buildVoiceMessage(message, isMe)
                   else
                     _buildTextMessage(message, isMe),
                   
@@ -402,6 +410,56 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
+  Widget _buildVoiceMessage(Map<String, dynamic> message, bool isMe) {
+    final duration = message['duration'] ?? 0;
+    
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isMe ? Colors.white.withOpacity(0.2) : Colors.grey.shade200,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.play_arrow,
+              color: isMe ? Colors.white : AppColors.primary,
+              size: 20,
+            ),
+          ),
+          SizedBox(width: 8),
+          // Waveform visualization
+          Row(
+            children: List.generate(20, (index) {
+              final heights = [3.0, 8.0, 5.0, 12.0, 7.0, 10.0, 6.0, 14.0, 4.0, 11.0, 
+                              9.0, 6.0, 13.0, 5.0, 8.0, 7.0, 10.0, 6.0, 9.0, 5.0];
+              return Container(
+                width: 2,
+                height: heights[index],
+                margin: EdgeInsets.symmetric(horizontal: 1),
+                decoration: BoxDecoration(
+                  color: isMe ? Colors.white.withOpacity(0.7) : AppColors.primary.withOpacity(0.7),
+                  borderRadius: BorderRadius.circular(1),
+                ),
+              );
+            }),
+          ),
+          SizedBox(width: 8),
+          Text(
+            '${duration}s',
+            style: TextStyle(
+              fontSize: 12,
+              color: isMe ? Colors.white.withOpacity(0.9) : Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildTypingIndicator() {
     return Container(
       margin: EdgeInsets.only(bottom: 16),
@@ -411,7 +469,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             radius: 16,
             backgroundColor: AppColors.primary.withOpacity(0.1),
             child: Text(
-              widget.userName[0].toUpperCase(),
+              widget.userName.isNotEmpty ? widget.userName[0].toUpperCase() : 'U',
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
@@ -471,6 +529,10 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildMessageInput() {
+    if (_isRecording) {
+      return _buildRecordingUI();
+    }
+    
     return Container(
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -513,20 +575,27 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           SizedBox(width: 8),
           CircleAvatar(
             radius: 24,
+            backgroundColor: Colors.grey.shade200,
+            child: IconButton(
+              icon: Icon(
+                Icons.mic,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              onPressed: _recordVoiceMessage,
+            ),
+          ),
+          SizedBox(width: 8),
+          CircleAvatar(
+            radius: 24,
             backgroundColor: AppColors.primary,
             child: IconButton(
               icon: Icon(
-                _messageController.text.trim().isEmpty ? Icons.mic : Icons.send,
+                Icons.send,
                 color: Colors.white,
                 size: 20,
               ),
-              onPressed: () {
-                if (_messageController.text.trim().isEmpty) {
-                  _recordVoiceMessage();
-                } else {
-                  _sendMessage();
-                }
-              },
+              onPressed: _sendMessage,
             ),
           ),
         ],
@@ -708,9 +777,177 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   void _recordVoiceMessage() {
+    setState(() {
+      _isRecording = true;
+      _recordingSeconds = 0;
+    });
+    
+    // Start timer
+    Future.doWhile(() async {
+      await Future.delayed(Duration(seconds: 1));
+      if (_isRecording && mounted) {
+        setState(() {
+          _recordingSeconds++;
+        });
+        return true;
+      }
+      return false;
+    });
+    
+    // In a real app, you would:
+    // 1. Request microphone permission
+    // 2. Start audio recording using a package like record, flutter_sound, or audio_recorder
+    // 3. Save the audio file
+  }
+  
+  void _cancelRecording() {
+    setState(() {
+      _isRecording = false;
+      _recordingSeconds = 0;
+    });
+    // Stop and delete the recording
+  }
+  
+  void _sendVoiceMessage() {
+    if (!_isRecording) return;
+    
+    final duration = _recordingSeconds;
+    
+    setState(() {
+      _isRecording = false;
+      _recordingSeconds = 0;
+    });
+    
+    // In a real app, save the recording and upload it
+    final newMessage = {
+      'id': DateTime.now().millisecondsSinceEpoch.toString(),
+      'senderId': 'seeker_1',
+      'senderName': 'Muhammad Ahmad',
+      'message': 'Voice message',
+      'timestamp': DateTime.now(),
+      'type': 'voice',
+      'isRead': false,
+      'duration': duration,
+    };
+
+    setState(() {
+      _messages.add(newMessage);
+    });
+
+    _scrollToBottom();
+    
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Voice recording not implemented yet')),
+      SnackBar(
+        content: Text('Voice message sent (${duration}s)'),
+        backgroundColor: Colors.green,
+      ),
     );
+  }
+  
+  Widget _buildRecordingUI() {
+    // Initialize controller if not already done
+    _recordingAnimationController ??= AnimationController(
+      duration: Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, -5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          // Cancel button
+          IconButton(
+            icon: Icon(Icons.close, color: Colors.red),
+            onPressed: _cancelRecording,
+          ),
+          
+          SizedBox(width: 8),
+          
+          // Recording animation
+          AnimatedBuilder(
+            animation: _recordingAnimationController!,
+            builder: (context, child) {
+              return Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.5 + 0.5 * _recordingAnimationController!.value),
+                  shape: BoxShape.circle,
+                ),
+              );
+            },
+          ),
+          
+          SizedBox(width: 12),
+          
+          // Timer
+          Text(
+            _formatRecordingTime(_recordingSeconds),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.red,
+            ),
+          ),
+          
+          Spacer(),
+          
+          // Waveform animation (decorative)
+          Row(
+            children: List.generate(5, (index) {
+              return AnimatedBuilder(
+                animation: _recordingAnimationController!,
+                builder: (context, child) {
+                  final height = 4.0 + 20.0 * 
+                    (0.5 + 0.5 * math.sin((_recordingAnimationController!.value * 2 * math.pi) - (index * 0.3)));
+                  return Container(
+                    width: 3,
+                    height: height,
+                    margin: EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  );
+                },
+              );
+            }),
+          ),
+          
+          Spacer(),
+          
+          // Send button
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: Colors.red,
+            child: IconButton(
+              icon: Icon(
+                Icons.send,
+                color: Colors.white,
+                size: 20,
+              ),
+              onPressed: _sendVoiceMessage,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+  
+  String _formatRecordingTime(int seconds) {
+    final minutes = seconds ~/ 60;
+    final remainingSeconds = seconds % 60;
+    return '${minutes.toString().padLeft(1, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   void _clearChat() {

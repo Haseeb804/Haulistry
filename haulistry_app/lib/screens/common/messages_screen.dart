@@ -280,7 +280,7 @@ class _MessagesScreenState extends State<MessagesScreen> {
         ],
       ),
       child: ListTile(
-        onTap: () => context.push('/chat/${message['id']}'),
+        onTap: () => context.push('/chat/${message['id']}?name=${Uri.encodeComponent(message['name'])}'),
         contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         leading: Stack(
           children: [

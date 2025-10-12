@@ -155,6 +155,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                           ),
                         ),
                         IconButton(
+                          icon: Icon(Icons.message_outlined, color: Colors.white),
+                          onPressed: () => context.push('/messages'),
+                        ),
+                        IconButton(
                           icon: Icon(Icons.notifications, color: Colors.white),
                           onPressed: () {},
                         ),
@@ -350,6 +354,28 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   Icons.account_balance_wallet,
                   Colors.green,
                   () => context.push('/provider/earnings'),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _buildActionButton(
+                  'Messages',
+                  Icons.message_outlined,
+                  Colors.orange,
+                  () => context.push('/messages'),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _buildActionButton(
+                  'Reviews',
+                  Icons.star,
+                  Colors.amber,
+                  () => context.push('/provider/reviews'),
                 ),
               ),
             ],
@@ -762,6 +788,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               context.push('/provider/bookings');
               break;
             case 3:
+              context.push('/messages');
+              break;
+            case 4:
               context.push('/provider/profile');
               break;
           }
@@ -781,6 +810,10 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Bookings',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.message_outlined),
+            label: 'Messages',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.person),

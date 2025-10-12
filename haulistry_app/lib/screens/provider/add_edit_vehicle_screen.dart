@@ -256,7 +256,7 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.primary),
           onPressed: () => context.pop(),
         ),
         title: Text(
