@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'providers/auth_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/theme_provider.dart';
@@ -10,8 +11,11 @@ import 'providers/seeker_preferences_provider.dart';
 import 'routes/app_router.dart';
 import 'utils/app_colors.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await Firebase.initializeApp();
   
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(

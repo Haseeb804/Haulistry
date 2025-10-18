@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "791087831841",
+    "project_id": "haulistry-1b835",
+    "storage_bucket": "haulistry-1b835.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:791087831841:android:2472fa5eb91d2744317c60",
+        "android_client_info": {
+          "package_name": "com.example.haulistry"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkAS9nPC6RIXOLC9G96VeRNu60b2lHLKA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
