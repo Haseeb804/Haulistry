@@ -1,0 +1,55 @@
+
+
+    def update_provider_profile(self, uid: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update provider profile with optional business fields
+        
+        Args:
+            uid: Provider Firebase UID
+            update_data: Dictionary of fields to update
+        
+        Returns:
+            dict: Updated provider data
+        """
+        with self.driver.session() as session:
+            print(f"\n{'='*60}")
+            print(f"💾 UPDATING PROVIDER PROFILE IN NEO4J")
+            print(f"   UID: {uid}")
+            print(f"   Fields to update: {list(update_data.keys())}")
+            print(f"{'='*60}\n")
+            
+            # Build SET clause dynamically
+            set_clauses = []
+            params = {"uid": uid}
+            
+            for key, value in update_data.items():
+                set_clauses.append(f"p.{key} = ${key}")
+                params[key] = value
+            
+            # Always update timestamp
+            set_clauses.append("p.updated_at = datetime()")
+            
+            set_clause = ", ".join(set_clauses)
+            
+            query = f"""
+            MATCH (p:Provider {{uid: $uid}})
+            SET {set_clause}
+            RETURN p
+            """
+            
+            print(f"🔍 Cypher Query:")
+            print(f"   {query}")
+            print(f"📊 Parameters: {params}\n")
+            
+            result = session.run(query, params)
+            record = result.single()
+            
+            if record:
+                node_data = dict(record["p"])
+                print(f"✅ Provider profile updated successfully")
+                print(f"   Total properties: {len(node_data)}")
+                print(f"   Updated fields: {list(update_data.keys())}\n")
+                return node_data
+            else:
+                print(f"❌ Provider not found with UID: {uid}\n")
+                return None
