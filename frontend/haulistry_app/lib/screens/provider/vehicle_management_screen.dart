@@ -445,7 +445,7 @@ class _VehicleManagementScreenState extends State<VehicleManagementScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'PKR ${vehicle.pricePerHour.toStringAsFixed(0)}',
+                          'PKR ${vehicle.pricePerHour?.toStringAsFixed(0) ?? 'N/A'}',
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

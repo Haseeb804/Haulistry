@@ -5,13 +5,13 @@ import '../models/service_model.dart';
 class BookingProvider with ChangeNotifier {
   bool _isLoading = false;
   List<BookingModel> _bookings = [];
-  List<ServiceModel> _services = [];
-  ServiceModel? _selectedService;
+  List<Service> _services = [];
+  Service? _selectedService;
   
   bool get isLoading => _isLoading;
   List<BookingModel> get bookings => _bookings;
-  List<ServiceModel> get services => _services;
-  ServiceModel? get selectedService => _selectedService;
+  List<Service> get services => _services;
+  Service? get selectedService => _selectedService;
 
   // Fetch services by type
   Future<void> fetchServices(String serviceType) async {
@@ -104,26 +104,24 @@ class BookingProvider with ChangeNotifier {
   }
 
   // Set selected service
-  void setSelectedService(ServiceModel service) {
+  void setSelectedService(Service service) {
     _selectedService = service;
     notifyListeners();
   }
 
   // Mock data generators
-  List<ServiceModel> _getMockServices(String type) {
-    return List.generate(10, (index) => ServiceModel(
-      id: 'service_$index',
-      providerId: 'provider_$index',
-      providerName: 'Provider ${index + 1}',
-      serviceType: type,
-      title: '$type Service ${index + 1}',
+  List<Service> _getMockServices(String type) {
+    return List.generate(10, (index) => Service(
+      serviceId: 'service_$index',
+      vehicleId: 'vehicle_$index',
+      providerUid: 'provider_$index',
+      serviceName: '$type Service ${index + 1}',
+      serviceCategory: type,
       description: 'Professional $type service with experienced operators',
       pricePerHour: 1500 + (index * 200).toDouble(),
       rating: 4.0 + (index % 10) * 0.1,
-      reviewCount: 20 + index * 5,
-      imageUrl: 'https://via.placeholder.com/300',
-      location: 'Lahore, Pakistan',
-      isAvailable: index % 3 != 0,
+      totalBookings: 20 + index * 5,
+      isActive: index % 3 != 0,
     ));
   }
 

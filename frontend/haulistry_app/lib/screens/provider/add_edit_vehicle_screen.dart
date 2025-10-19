@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_utils.dart';
 import '../../providers/vehicle_provider.dart';
 import '../../models/vehicle_model.dart';
+import '../../services/auth_service.dart';
 
 class AddEditVehicleScreen extends StatefulWidget {
   final String? vehicleId; // null for add, id for edit
@@ -27,7 +30,15 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
   final _yearController = TextEditingController();
   final _registrationController = TextEditingController();
   final _capacityController = TextEditingController();
-  final _priceController = TextEditingController();
+  final _pricePerHourController = TextEditingController();
+  final _pricePerDayController = TextEditingController();
+  final _cityController = TextEditingController();
+  final _provinceController = TextEditingController();
+  final _descriptionController = TextEditingController();
+  final _insuranceExpiryController = TextEditingController();
+  
+  final ImagePicker _imagePicker = ImagePicker();
+  XFile? _vehicleImage;
 
   String? _selectedVehicleType;
   String? _selectedCondition;
@@ -75,8 +86,13 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
       _modelController.text = vehicle.model;
       _yearController.text = vehicle.year.toString();
       _registrationController.text = vehicle.registrationNumber;
-      _capacityController.text = vehicle.capacity;
-      _priceController.text = vehicle.pricePerHour.toString();
+      _capacityController.text = vehicle.capacity ?? '';
+      _pricePerHourController.text = vehicle.pricePerHour?.toString() ?? '';
+      _pricePerDayController.text = vehicle.pricePerDay?.toString() ?? '';
+      _cityController.text = vehicle.city ?? '';
+      _provinceController.text = vehicle.province ?? '';
+      _descriptionController.text = vehicle.description ?? '';
+      _insuranceExpiryController.text = vehicle.insuranceExpiry ?? '';
       _selectedVehicleType = vehicle.vehicleType;
       _selectedCondition = vehicle.condition;
       _hasInsurance = vehicle.hasInsurance;
@@ -93,7 +109,12 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
     _yearController.dispose();
     _registrationController.dispose();
     _capacityController.dispose();
-    _priceController.dispose();
+    _pricePerHourController.dispose();
+    _pricePerDayController.dispose();
+    _cityController.dispose();
+    _provinceController.dispose();
+    _descriptionController.dispose();
+    _insuranceExpiryController.dispose();
     super.dispose();
   }
 
@@ -101,59 +122,109 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
 
-      final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
+      try {
+        final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
+        final authService = AuthService();
+        final providerUid = authService.userProfile?['uid'];
 
-      final vehicle = Vehicle(
-        id: widget.vehicleId ?? 'VEH${DateTime.now().millisecondsSinceEpoch}',
-        vehicleType: _selectedVehicleType!,
-        vehicleName: _vehicleNameController.text,
-        make: _makeController.text,
-        model: _modelController.text,
-        year: int.parse(_yearController.text),
-        registrationNumber: _registrationController.text,
-        condition: _selectedCondition!,
-        capacity: _capacityController.text,
-        pricePerHour: double.parse(_priceController.text),
-        hasInsurance: _hasInsurance,
-        isAvailable: _isAvailable,
-      );
+        if (providerUid == null) {
+          throw Exception('User not logged in');
+        }
 
-      bool success;
-      if (isEditMode) {
-        success = await vehicleProvider.updateVehicle(widget.vehicleId!, vehicle);
-      } else {
-        success = await vehicleProvider.addVehicle(vehicle);
-      }
+        // Convert image to Base64 if selected
+        String? vehicleImageBase64;
+        if (_vehicleImage != null) {
+          vehicleImageBase64 = await ImageUtils.convertImageToBase64(_vehicleImage!);
+          print('📸 Vehicle image converted: ${ImageUtils.getBase64FileSizeKB(vehicleImageBase64).toStringAsFixed(2)} KB');
+        }
 
-      setState(() => _isLoading = false);
+        final vehicle = Vehicle(
+          vehicleId: widget.vehicleId ?? 'VEH${DateTime.now().millisecondsSinceEpoch}',
+          providerUid: providerUid,
+          vehicleName: _vehicleNameController.text.trim(),
+          vehicleType: _selectedVehicleType!,
+          make: _makeController.text.trim(),
+          model: _modelController.text.trim(),
+          year: int.parse(_yearController.text),
+          registrationNumber: _registrationController.text.trim(),
+          capacity: _capacityController.text.trim().isEmpty ? null : _capacityController.text.trim(),
+          condition: _selectedCondition!,
+          vehicleImage: vehicleImageBase64,
+          hasInsurance: _hasInsurance,
+          insuranceExpiry: _hasInsurance && _insuranceExpiryController.text.isNotEmpty 
+              ? _insuranceExpiryController.text.trim() 
+              : null,
+          isAvailable: _isAvailable,
+          city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
+          province: _provinceController.text.trim().isEmpty ? null : _provinceController.text.trim(),
+          pricePerHour: _pricePerHourController.text.isEmpty 
+              ? null 
+              : double.tryParse(_pricePerHourController.text),
+          pricePerDay: _pricePerDayController.text.isEmpty 
+              ? null 
+              : double.tryParse(_pricePerDayController.text),
+          description: _descriptionController.text.trim().isEmpty 
+              ? null 
+              : _descriptionController.text.trim(),
+        );
 
-      if (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Row(
-                children: [
-                  const Icon(Icons.check_circle, color: Colors.white),
-                  const SizedBox(width: 12),
-                  Text(isEditMode
-                      ? 'Vehicle updated successfully!'
-                      : 'Vehicle added successfully!'),
-                ],
+        bool success;
+        if (isEditMode) {
+          success = await vehicleProvider.updateVehicle(widget.vehicleId!, vehicle);
+        } else {
+          success = await vehicleProvider.addVehicle(vehicle);
+        }
+
+        setState(() => _isLoading = false);
+
+        if (success) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Text(isEditMode
+                        ? 'Vehicle updated successfully!'
+                        : 'Vehicle added successfully!'),
+                  ],
+                ),
+                backgroundColor: Colors.green.shade600,
+                behavior: SnackBarBehavior.floating,
               ),
-              backgroundColor: Colors.green.shade600,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          
-          // Navigate based on context
-          if (widget.isOnboarding && !isEditMode) {
-            // Show option to add more or go to dashboard
-            _showOnboardingOptions();
-          } else {
-            context.pop();
+            );
+            
+            // Navigate based on context
+            if (widget.isOnboarding && !isEditMode) {
+              // Show option to add more or go to dashboard
+              _showOnboardingOptions();
+            } else {
+              context.pop();
+            }
+          }
+        } else {
+          if (mounted) {
+            final errorMsg = vehicleProvider.error ?? 
+                (isEditMode ? 'Failed to update vehicle' : 'Failed to add vehicle');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Row(
+                  children: [
+                    const Icon(Icons.error, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(errorMsg)),
+                  ],
+                ),
+                backgroundColor: Colors.red.shade600,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
+            );
           }
         }
-      } else {
+      } catch (e) {
+        setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -161,15 +232,37 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
                 children: [
                   const Icon(Icons.error, color: Colors.white),
                   const SizedBox(width: 12),
-                  Text(isEditMode ? 'Failed to update vehicle' : 'Failed to add vehicle'),
+                  Expanded(child: Text('Error: ${e.toString()}')),
                 ],
               ),
               backgroundColor: Colors.red.shade600,
               behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 4),
             ),
           );
         }
       }
+    }
+  }
+
+  Future<void> _pickVehicleImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1920,
+        maxHeight: 1920,
+        imageQuality: 85,
+      );
+
+      if (image != null) {
+        setState(() {
+          _vehicleImage = image;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error picking image: $e')),
+      );
     }
   }
 
@@ -225,12 +318,18 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
     _yearController.clear();
     _registrationController.clear();
     _capacityController.clear();
-    _priceController.clear();
+    _pricePerHourController.clear();
+    _pricePerDayController.clear();
+    _cityController.clear();
+    _provinceController.clear();
+    _descriptionController.clear();
+    _insuranceExpiryController.clear();
     setState(() {
       _selectedVehicleType = null;
       _selectedCondition = null;
       _hasInsurance = false;
       _isAvailable = true;
+      _vehicleImage = null;
     });
     
     ScaffoldMessenger.of(context).showSnackBar(
@@ -449,7 +548,7 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
 
               // Price per hour
               _buildTextField(
-                controller: _priceController,
+                controller: _pricePerHourController,
                 label: 'Price per Hour (PKR)',
                 hint: 'Enter hourly rate',
                 icon: Icons.attach_money,

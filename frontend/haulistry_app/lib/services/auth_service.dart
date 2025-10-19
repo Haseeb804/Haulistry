@@ -103,6 +103,13 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Public method to reload current user profile
+  Future<void> loadUserProfile() async {
+    if (_currentUser != null) {
+      await _loadUserProfile(_currentUser!.uid);
+    }
+  }
+
   /// Register a new seeker (customer)
   Future<bool> registerSeeker({
     required String email,
@@ -347,6 +354,41 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  /// Reload user profile from backend (useful after updates)
+  Future<bool> reloadUserProfile() async {
+    try {
+      if (_userProfile == null) {
+        debugPrint('Cannot reload profile: no user profile available');
+        return false;
+      }
+
+      final uid = _userProfile?['uid'];
+      if (uid == null) {
+        debugPrint('Cannot reload profile: no UID found');
+        return false;
+      }
+
+      debugPrint('🔄 Reloading user profile for UID: $uid');
+
+      // Call GraphQL to get fresh user data from Neo4j
+      final freshProfile = await _graphql.getUserProfile(uid);
+
+      if (freshProfile != null) {
+        _userProfile = freshProfile;
+        notifyListeners();
+        debugPrint('✅ User profile reloaded successfully');
+        debugPrint('   Profile image: ${freshProfile['profileImage'] != null ? "Present (${(freshProfile['profileImage'] as String).length} chars)" : "null"}');
+        return true;
+      } else {
+        debugPrint('❌ Failed to reload profile: getUserProfile returned null');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('❌ Error reloading profile: $e');
+      return false;
+    }
+  }
+
   /// Logout user
   Future<void> logout() async {
     try {
@@ -478,6 +520,12 @@ class AuthService extends ChangeNotifier {
     String? province,
     int? yearsExperience,
     String? description,
+    // Document images (Base64 data URLs)
+    String? profileImage,
+    String? cnicFrontImage,
+    String? cnicBackImage,
+    String? licenseImage,
+    String? licenseNumber,
   }) async {
     try {
       _setLoading(true);
@@ -499,6 +547,11 @@ class AuthService extends ChangeNotifier {
         province: province,
         yearsExperience: yearsExperience,
         description: description,
+        profileImage: profileImage,
+        cnicFrontImage: cnicFrontImage,
+        cnicBackImage: cnicBackImage,
+        licenseImage: licenseImage,
+        licenseNumber: licenseNumber,
       );
 
       if (!result['success']) {

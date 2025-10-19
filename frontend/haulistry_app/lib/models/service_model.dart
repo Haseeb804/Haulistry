@@ -1,107 +1,174 @@
-class ServiceModel {
-  final String id;
-  final String providerId;
-  final String providerName;
-  final String serviceType;
-  final String title;
-  final String description;
-  final double pricePerHour;
+// Service model matching GraphQL Service type
+class Service {
+  final String serviceId;
+  final String vehicleId;
+  final String providerUid;
+  final String serviceName;
+  final String serviceCategory;
+  final double? pricePerHour;
+  final double? pricePerDay;
+  final double? pricePerService;
+  final String? description;
+  final String? serviceArea;
+  final String? minBookingDuration;
+  final bool isActive;
+  final String? availableDays; // JSON string
+  final String? availableHours;
+  final bool operatorIncluded;
+  final bool fuelIncluded;
+  final bool transportationIncluded;
+  final int totalBookings;
   final double rating;
-  final int reviewCount;
-  final String imageUrl;
-  final String location;
-  final bool isAvailable;
-  final List<String>? additionalImages;
-  final Map<String, dynamic>? specifications;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
-  ServiceModel({
-    required this.id,
-    required this.providerId,
-    required this.providerName,
-    required this.serviceType,
-    required this.title,
-    required this.description,
-    required this.pricePerHour,
-    required this.rating,
-    required this.reviewCount,
-    required this.imageUrl,
-    required this.location,
-    required this.isAvailable,
-    this.additionalImages,
-    this.specifications,
-  });
+  Service({
+    required this.serviceId,
+    required this.vehicleId,
+    required this.providerUid,
+    required this.serviceName,
+    required this.serviceCategory,
+    this.pricePerHour,
+    this.pricePerDay,
+    this.pricePerService,
+    this.description,
+    this.serviceArea,
+    this.minBookingDuration,
+    this.isActive = true,
+    this.availableDays,
+    this.availableHours,
+    this.operatorIncluded = true,
+    this.fuelIncluded = false,
+    this.transportationIncluded = false,
+    this.totalBookings = 0,
+    this.rating = 0.0,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  })  : createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
 
-  factory ServiceModel.fromJson(Map<String, dynamic> json) {
-    return ServiceModel(
-      id: json['id'] ?? '',
-      providerId: json['providerId'] ?? '',
-      providerName: json['providerName'] ?? '',
-      serviceType: json['serviceType'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      pricePerHour: json['pricePerHour']?.toDouble() ?? 0.0,
-      rating: json['rating']?.toDouble() ?? 0.0,
-      reviewCount: json['reviewCount'] ?? 0,
-      imageUrl: json['imageUrl'] ?? '',
-      location: json['location'] ?? '',
-      isAvailable: json['isAvailable'] ?? true,
-      additionalImages: json['additionalImages'] != null
-          ? List<String>.from(json['additionalImages'])
-          : null,
-      specifications: json['specifications'],
+  // Backward compatibility: use serviceId as id
+  String get id => serviceId;
+
+  // From GraphQL response
+  factory Service.fromGraphQL(Map<String, dynamic> json) {
+    return Service(
+      serviceId: json['serviceId'] as String,
+      vehicleId: json['vehicleId'] as String,
+      providerUid: json['providerUid'] as String,
+      serviceName: json['serviceName'] as String,
+      serviceCategory: json['serviceCategory'] as String,
+      pricePerHour: (json['pricePerHour'] as num?)?.toDouble(),
+      pricePerDay: (json['pricePerDay'] as num?)?.toDouble(),
+      pricePerService: (json['pricePerService'] as num?)?.toDouble(),
+      description: json['description'] as String?,
+      serviceArea: json['serviceArea'] as String?,
+      minBookingDuration: json['minBookingDuration'] as String?,
+      isActive: json['isActive'] as bool? ?? true,
+      availableDays: json['availableDays'] as String?,
+      availableHours: json['availableHours'] as String?,
+      operatorIncluded: json['operatorIncluded'] as bool? ?? true,
+      fuelIncluded: json['fuelIncluded'] as bool? ?? false,
+      transportationIncluded: json['transportationIncluded'] as bool? ?? false,
+      totalBookings: json['totalBookings'] as int? ?? 0,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      createdAt: json['createdAt'] != null 
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
+      updatedAt: json['updatedAt'] != null 
+          ? DateTime.parse(json['updatedAt'] as String)
+          : DateTime.now(),
     );
   }
 
+  // To JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
-      'providerId': providerId,
-      'providerName': providerName,
-      'serviceType': serviceType,
-      'title': title,
-      'description': description,
+      'serviceId': serviceId,
+      'vehicleId': vehicleId,
+      'providerUid': providerUid,
+      'serviceName': serviceName,
+      'serviceCategory': serviceCategory,
       'pricePerHour': pricePerHour,
+      'pricePerDay': pricePerDay,
+      'pricePerService': pricePerService,
+      'description': description,
+      'serviceArea': serviceArea,
+      'minBookingDuration': minBookingDuration,
+      'isActive': isActive,
+      'availableDays': availableDays,
+      'availableHours': availableHours,
+      'operatorIncluded': operatorIncluded,
+      'fuelIncluded': fuelIncluded,
+      'transportationIncluded': transportationIncluded,
+      'totalBookings': totalBookings,
       'rating': rating,
-      'reviewCount': reviewCount,
-      'imageUrl': imageUrl,
-      'location': location,
-      'isAvailable': isAvailable,
-      'additionalImages': additionalImages,
-      'specifications': specifications,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
     };
   }
 
-  ServiceModel copyWith({
-    String? id,
-    String? providerId,
-    String? providerName,
-    String? serviceType,
-    String? title,
-    String? description,
+  // Copy with method
+  Service copyWith({
+    String? serviceId,
+    String? vehicleId,
+    String? providerUid,
+    String? serviceName,
+    String? serviceCategory,
     double? pricePerHour,
+    double? pricePerDay,
+    double? pricePerService,
+    String? description,
+    String? serviceArea,
+    String? minBookingDuration,
+    bool? isActive,
+    String? availableDays,
+    String? availableHours,
+    bool? operatorIncluded,
+    bool? fuelIncluded,
+    bool? transportationIncluded,
+    int? totalBookings,
     double? rating,
-    int? reviewCount,
-    String? imageUrl,
-    String? location,
-    bool? isAvailable,
-    List<String>? additionalImages,
-    Map<String, dynamic>? specifications,
+    DateTime? createdAt,
+    DateTime? updatedAt,
   }) {
-    return ServiceModel(
-      id: id ?? this.id,
-      providerId: providerId ?? this.providerId,
-      providerName: providerName ?? this.providerName,
-      serviceType: serviceType ?? this.serviceType,
-      title: title ?? this.title,
-      description: description ?? this.description,
+    return Service(
+      serviceId: serviceId ?? this.serviceId,
+      vehicleId: vehicleId ?? this.vehicleId,
+      providerUid: providerUid ?? this.providerUid,
+      serviceName: serviceName ?? this.serviceName,
+      serviceCategory: serviceCategory ?? this.serviceCategory,
       pricePerHour: pricePerHour ?? this.pricePerHour,
+      pricePerDay: pricePerDay ?? this.pricePerDay,
+      pricePerService: pricePerService ?? this.pricePerService,
+      description: description ?? this.description,
+      serviceArea: serviceArea ?? this.serviceArea,
+      minBookingDuration: minBookingDuration ?? this.minBookingDuration,
+      isActive: isActive ?? this.isActive,
+      availableDays: availableDays ?? this.availableDays,
+      availableHours: availableHours ?? this.availableHours,
+      operatorIncluded: operatorIncluded ?? this.operatorIncluded,
+      fuelIncluded: fuelIncluded ?? this.fuelIncluded,
+      transportationIncluded: transportationIncluded ?? this.transportationIncluded,
+      totalBookings: totalBookings ?? this.totalBookings,
       rating: rating ?? this.rating,
-      reviewCount: reviewCount ?? this.reviewCount,
-      imageUrl: imageUrl ?? this.imageUrl,
-      location: location ?? this.location,
-      isAvailable: isAvailable ?? this.isAvailable,
-      additionalImages: additionalImages ?? this.additionalImages,
-      specifications: specifications ?? this.specifications,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  // Get price display
+  String get priceDisplay {
+    if (pricePerHour != null) {
+      return 'PKR ${pricePerHour!.toStringAsFixed(0)}/hour';
+    } else if (pricePerDay != null) {
+      return 'PKR ${pricePerDay!.toStringAsFixed(0)}/day';
+    } else if (pricePerService != null) {
+      return 'PKR ${pricePerService!.toStringAsFixed(0)}/service';
+    }
+    return 'Price not set';
+  }
+
+  // Get status display
+  String get statusDisplay => isActive ? 'Active' : 'Inactive';
 }

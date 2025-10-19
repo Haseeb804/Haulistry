@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
 
 class EditProfileScreen extends StatefulWidget {
@@ -22,7 +25,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _selectedGender;
   DateTime? _selectedDate;
   bool _isLoading = false;
+  bool _isUploadingImage = false;
   String? _profileImagePath;
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
@@ -328,34 +333,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       children: [
         Stack(
           children: [
-            CircleAvatar(
-              radius: 60,
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-              backgroundImage: _profileImagePath != null
-                  ? NetworkImage(_profileImagePath!)
-                  : null,
-              child: _profileImagePath == null
-                  ? Text(
-                      _nameController.text.isNotEmpty
-                          ? _nameController.text[0].toUpperCase()
-                          : 'U',
-                      style: TextStyle(
-                        fontSize: 48,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
-                    )
-                  : null,
+            Builder(
+              builder: (context) {
+                final imageBytes = ImageUtils.decodeBase64Image(_profileImagePath);
+                return CircleAvatar(
+                  radius: 60,
+                  backgroundColor: AppColors.primary.withOpacity(0.1),
+                  backgroundImage: imageBytes != null
+                    ? MemoryImage(imageBytes)
+                    : null,
+                  child: imageBytes == null
+                    ? Text(
+                        _nameController.text.isNotEmpty
+                            ? _nameController.text[0].toUpperCase()
+                            : 'U',
+                        style: TextStyle(
+                          fontSize: 48,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : null,
+                );
+              },
             ),
+            // Loading overlay when uploading
+            if (_isUploadingImage)
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.5),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                ),
+              ),
             Positioned(
               bottom: 0,
               right: 0,
               child: GestureDetector(
-                onTap: _showImagePickerDialog,
+                onTap: _isUploadingImage ? null : _showImagePickerDialog,
                 child: Container(
                   padding: EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary,
+                    color: _isUploadingImage 
+                      ? Colors.grey 
+                      : AppColors.primary,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -377,10 +404,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         SizedBox(height: 12),
         Text(
-          'Tap to change profile picture',
+          _isUploadingImage 
+            ? 'Uploading image...'
+            : 'Tap to change profile picture',
           style: TextStyle(
-            color: AppColors.textSecondary,
+            color: _isUploadingImage 
+              ? AppColors.primary 
+              : AppColors.textSecondary,
             fontSize: 14,
+            fontWeight: _isUploadingImage 
+              ? FontWeight.w600 
+              : FontWeight.normal,
           ),
         ),
       ],
@@ -602,9 +636,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 title: Text('Remove Photo'),
                 onTap: () {
                   context.pop();
-                  setState(() {
-                    _profileImagePath = null;
-                  });
+                  _removeProfilePicture();
                 },
               ),
           ],
@@ -613,14 +645,210 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     );
   }
 
-  void _pickImage(String source) {
-    // Mock image picking - replace with actual image picker implementation
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Image picker not implemented yet'),
-        backgroundColor: AppColors.primary,
-      ),
-    );
+  Future<void> _pickImage(String source) async {
+    try {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      XFile? pickedFile;
+
+      if (source == 'camera') {
+        // Camera not available on web, show message
+        if (kIsWeb) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('📷 Camera is not available on web. Please choose from gallery.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          setState(() {
+            _isUploadingImage = false;
+          });
+          return;
+        }
+        
+        pickedFile = await _imagePicker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+      } else {
+        // Gallery works on all platforms
+        pickedFile = await _imagePicker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+      }
+
+      if (pickedFile == null) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      // Convert image to Base64
+      final base64Image = await ImageUtils.convertImageToBase64(pickedFile);
+      
+      // Get file size for validation
+      final fileSizeKB = ImageUtils.getBase64FileSizeKB(base64Image);
+      
+      // Check file size (max 2MB)
+      if (fileSizeKB > 2048) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Image is too large (${fileSizeKB.toStringAsFixed(0)} KB). Please choose an image smaller than 2 MB.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      // Update profile image on backend
+      final authService = context.read<AuthService>();
+      final uid = authService.userProfile?['uid'];
+
+      if (uid == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: User not authenticated'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      // Update profile image via GraphQL
+      final success = await authService.updateSeekerProfile(
+        uid: uid,
+        profileImage: base64Image,
+      );
+
+      if (success && mounted) {
+        setState(() {
+          _profileImagePath = base64Image;
+          _isUploadingImage = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Profile picture updated successfully! (${fileSizeKB.toStringAsFixed(0)} KB)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to update profile picture. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeProfilePicture() async {
+    try {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      final authService = context.read<AuthService>();
+      final uid = authService.userProfile?['uid'];
+
+      if (uid == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: User not authenticated'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      // Update profile to remove image (set to empty string)
+      final success = await authService.updateSeekerProfile(
+        uid: uid,
+        profileImage: '', // Empty string to remove
+      );
+
+      if (success && mounted) {
+        setState(() {
+          _profileImagePath = null;
+          _isUploadingImage = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Profile picture removed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to remove profile picture. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error removing profile picture: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
   }
 
   void _saveProfile() async {

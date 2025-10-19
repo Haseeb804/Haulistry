@@ -46,9 +46,19 @@ class Provider(User):
     province: Optional[str] = None
     years_experience: Optional[int] = None
     description: Optional[str] = None
+    # Document images (Base64 URLs)
+    profile_image: Optional[str] = None
+    cnic_front_image: Optional[str] = None
+    cnic_back_image: Optional[str] = None
+    license_image: Optional[str] = None
+    license_number: Optional[str] = None
+    # Verification
+    is_verified: bool = False
+    documents_uploaded: bool = False
+    verification_status: str = "pending"
+    # Stats
     rating: Optional[float] = None
     total_bookings: int = 0
-    is_verified: bool = False
 
 
 @strawberry.type
@@ -126,6 +136,12 @@ class UpdateProviderProfileInput:
     province: Optional[str] = None
     years_experience: Optional[int] = None
     description: Optional[str] = None
+    # Document images (Base64 URLs)
+    profile_image: Optional[str] = None
+    cnic_front_image: Optional[str] = None
+    cnic_back_image: Optional[str] = None
+    license_image: Optional[str] = None
+    license_number: Optional[str] = None
 
 
 @strawberry.input
@@ -153,3 +169,197 @@ class LoginInput:
     email: str
     password: str
     user_type: Optional[str] = None  # Optional - backend will auto-detect from Neo4j
+
+
+# ==================== VEHICLE & SERVICE TYPES ====================
+
+@strawberry.type
+class Vehicle:
+    """Vehicle type for GraphQL"""
+    vehicle_id: str
+    provider_uid: str
+    name: str
+    vehicle_type: str
+    make: str
+    model: str
+    year: int
+    registration_number: str
+    capacity: Optional[str] = None
+    condition: str = "Good"
+    # Images (Base64 URLs)
+    vehicle_image: Optional[str] = None
+    additional_images: Optional[str] = None
+    # Insurance & Availability
+    has_insurance: bool = False
+    insurance_expiry: Optional[str] = None
+    is_available: bool = True
+    # Location
+    city: Optional[str] = None
+    province: Optional[str] = None
+    # Pricing
+    price_per_hour: Optional[float] = None
+    price_per_day: Optional[float] = None
+    description: Optional[str] = None
+    # Metadata
+    created_at: str
+    updated_at: str
+
+
+@strawberry.type
+class Service:
+    """Service type for GraphQL"""
+    service_id: str
+    vehicle_id: str
+    provider_uid: str
+    service_name: str
+    service_category: str
+    # Pricing
+    price_per_hour: Optional[float] = None
+    price_per_day: Optional[float] = None
+    price_per_service: Optional[float] = None
+    # Details
+    description: Optional[str] = None
+    service_area: Optional[str] = None
+    min_booking_duration: Optional[str] = None
+    # Availability
+    is_active: bool = True
+    available_days: Optional[str] = None
+    available_hours: Optional[str] = None
+    # Requirements
+    operator_included: bool = True
+    fuel_included: bool = False
+    transportation_included: bool = False
+    # Stats
+    total_bookings: int = 0
+    rating: float = 0.0
+    # Metadata
+    created_at: str
+    updated_at: str
+
+
+@strawberry.input
+class AddVehicleInput:
+    """Input for adding a new vehicle"""
+    provider_uid: str
+    name: str
+    vehicle_type: str
+    make: str
+    model: str
+    year: int
+    registration_number: str
+    capacity: Optional[str] = None
+    condition: str = "Good"
+    # Images (Base64 URLs)
+    vehicle_image: Optional[str] = None
+    additional_images: Optional[str] = None
+    # Insurance
+    has_insurance: bool = False
+    insurance_expiry: Optional[str] = None
+    is_available: bool = True
+    # Location
+    city: Optional[str] = None
+    province: Optional[str] = None
+    # Pricing
+    price_per_hour: Optional[float] = None
+    price_per_day: Optional[float] = None
+    description: Optional[str] = None
+
+
+@strawberry.input
+class UpdateVehicleInput:
+    """Input for updating vehicle"""
+    vehicle_id: str
+    name: Optional[str] = None
+    vehicle_type: Optional[str] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
+    year: Optional[int] = None
+    registration_number: Optional[str] = None
+    capacity: Optional[str] = None
+    condition: Optional[str] = None
+    # Images
+    vehicle_image: Optional[str] = None
+    additional_images: Optional[str] = None
+    # Insurance
+    has_insurance: Optional[bool] = None
+    insurance_expiry: Optional[str] = None
+    is_available: Optional[bool] = None
+    # Location
+    city: Optional[str] = None
+    province: Optional[str] = None
+    # Pricing
+    price_per_hour: Optional[float] = None
+    price_per_day: Optional[float] = None
+    description: Optional[str] = None
+
+
+@strawberry.input
+class AddServiceInput:
+    """Input for adding a new service"""
+    vehicle_id: str
+    provider_uid: str
+    service_name: str
+    service_category: str
+    # Pricing
+    price_per_hour: Optional[float] = None
+    price_per_day: Optional[float] = None
+    price_per_service: Optional[float] = None
+    # Details
+    description: Optional[str] = None
+    service_area: Optional[str] = None
+    min_booking_duration: Optional[str] = None
+    # Availability
+    is_active: bool = True
+    available_days: Optional[str] = None
+    available_hours: Optional[str] = None
+    # Requirements
+    operator_included: bool = True
+    fuel_included: bool = False
+    transportation_included: bool = False
+
+
+@strawberry.input
+class UpdateServiceInput:
+    """Input for updating service"""
+    service_id: str
+    service_name: Optional[str] = None
+    service_category: Optional[str] = None
+    # Pricing
+    price_per_hour: Optional[float] = None
+    price_per_day: Optional[float] = None
+    price_per_service: Optional[float] = None
+    # Details
+    description: Optional[str] = None
+    service_area: Optional[str] = None
+    min_booking_duration: Optional[str] = None
+    # Availability
+    is_active: Optional[bool] = None
+    available_days: Optional[str] = None
+    available_hours: Optional[str] = None
+    # Requirements
+    operator_included: Optional[bool] = None
+    fuel_included: Optional[bool] = None
+    transportation_included: Optional[bool] = None
+
+
+@strawberry.type
+class VehicleResponse:
+    """Response type for vehicle operations"""
+    success: bool
+    message: str
+    vehicle: Optional[Vehicle] = None
+
+
+@strawberry.type
+class ServiceResponse:
+    """Response type for service operations"""
+    success: bool
+    message: str
+    service: Optional[Service] = None
+
+
+@strawberry.type
+class GenericResponse:
+    """Generic response for delete operations"""
+    success: bool
+    message: str

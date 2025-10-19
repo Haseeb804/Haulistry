@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_utils.dart';
+import '../../services/auth_service.dart';
 
 class ProviderProfileScreen extends StatefulWidget {
   const ProviderProfileScreen({super.key});
@@ -10,31 +13,39 @@ class ProviderProfileScreen extends StatefulWidget {
 }
 
 class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
-  // Mock provider data
-  final Map<String, dynamic> _providerData = {
-    'name': 'Ali Traders',
-    'email': 'ali.traders@example.com',
-    'phone': '+92 300 1234567',
-    'businessName': 'Ali Agricultural Services',
-    'businessType': 'Sole Proprietorship',
-    'registrationNumber': 'REG-2024-001',
-    'address': 'Main Street, Faisalabad, Punjab',
-    'joinedDate': 'January 2024',
-    'verified': true,
-  };
-
-  final Map<String, dynamic> _stats = {
-    'totalEarnings': 450000,
-    'completedBookings': 87,
-    'activeServices': 3,
-    'rating': 4.8,
-    'reviews': 124,
-    'responseRate': 98,
-    'responseTime': '< 1 hour',
-  };
-
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userProfile = authService.userProfile;
+    
+    if (userProfile == null) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // 🐛 DEBUG: Print profile image data
+    print('═══════════════════════════════════');
+    print('📸 PROVIDER PROFILE PICTURE DEBUG');
+    print('═══════════════════════════════════');
+    print('User: ${userProfile['fullName']}');
+    print('Email: ${userProfile['email']}');
+    print('Has profileImage key: ${userProfile.containsKey('profileImage')}');
+    print('ProfileImage value: ${userProfile['profileImage']}');
+    if (userProfile['profileImage'] != null && userProfile['profileImage'] != '') {
+      final img = userProfile['profileImage'] as String;
+      print('ProfileImage length: ${img.length}');
+      print('ProfileImage prefix (first 60 chars): ${img.substring(0, img.length > 60 ? 60 : img.length)}');
+      print('Starts with "data:image": ${img.startsWith('data:image')}');
+      
+      // Test decoding
+      final decoded = ImageUtils.decodeBase64Image(img);
+      print('Decoded bytes: ${decoded != null ? "${decoded.length} bytes" : "NULL (decode failed)"}');
+    } else {
+      print('❌ ProfileImage is NULL or EMPTY');
+    }
+    print('═══════════════════════════════════\n');
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: Column(
@@ -94,19 +105,29 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         // Avatar & Name
                         Stack(
                           children: [
-                            CircleAvatar(
-                              radius: 50,
-                              backgroundColor: Colors.white,
-                              child: Text(
-                                _providerData['name'][0],
-                                style: TextStyle(
-                                  fontSize: 40,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                ),
-                              ),
+                            Builder(
+                              builder: (context) {
+                                final imageBytes = ImageUtils.decodeBase64Image(userProfile['profileImage']);
+                                return CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage: imageBytes != null
+                                    ? MemoryImage(imageBytes)
+                                    : null,
+                                  child: imageBytes == null
+                                    ? Text(
+                                        (userProfile['fullName'] ?? 'U')[0].toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 40,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.primary,
+                                        ),
+                                      )
+                                    : null,
+                                );
+                              },
                             ),
-                            if (_providerData['verified'])
+                            if (userProfile['isVerified'] == true)
                               Positioned(
                                 bottom: 0,
                                 right: 0,
@@ -130,15 +151,18 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Text(
-                              _providerData['name'],
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Text(
+                                userProfile['fullName'] ?? 'Provider',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
                               ),
                             ),
-                            if (_providerData['verified']) ...[
+                            if (userProfile['isVerified'] == true) ...[
                               SizedBox(width: 8),
                               Icon(
                                 Icons.verified,
@@ -148,9 +172,29 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                             ],
                           ],
                         ),
+                        SizedBox(height: 8),
+                        Text(
+                          userProfile['serviceType'] ?? 'Service Provider',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.9),
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (userProfile['businessName'] != null) ...[
+                          SizedBox(height: 4),
+                          Text(
+                            userProfile['businessName'],
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 14,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                         SizedBox(height: 4),
                         Text(
-                          _providerData['businessName'],
+                          userProfile['serviceType'] ?? 'Service Provider',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 14,
@@ -163,7 +207,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                             Icon(Icons.star, color: Colors.white, size: 20),
                             SizedBox(width: 4),
                             Text(
-                              '${_stats['rating']}',
+                              '${userProfile['rating']?.toStringAsFixed(1) ?? '0.0'}',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -172,7 +216,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                             ),
                             SizedBox(width: 4),
                             Text(
-                              '(${_stats['reviews']} reviews)',
+                              '(0 reviews)',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.9),
                                 fontSize: 14,
@@ -196,36 +240,36 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Stats Grid
-                  _buildStatsGrid(),
+                  _buildStatsGrid(userProfile),
 
                   SizedBox(height: 24),
 
                   // Business Information
                   _buildSectionTitle('Business Information'),
                   SizedBox(height: 12),
-                  _buildInfoCard([
+                  _buildInfoCard(userProfile, [
                     _buildInfoTile(
                       Icons.business,
                       'Business Name',
-                      _providerData['businessName'],
+                      userProfile['businessName'] ?? 'Not provided',
                     ),
                     Divider(height: 1),
                     _buildInfoTile(
                       Icons.category,
-                      'Business Type',
-                      _providerData['businessType'],
+                      'Service Type',
+                      userProfile['serviceType'] ?? 'Not provided',
                     ),
                     Divider(height: 1),
                     _buildInfoTile(
-                      Icons.numbers,
-                      'Registration Number',
-                      _providerData['registrationNumber'],
+                      Icons.location_city,
+                      'City',
+                      userProfile['city'] ?? 'Not provided',
                     ),
                     Divider(height: 1),
                     _buildInfoTile(
                       Icons.location_on,
-                      'Address',
-                      _providerData['address'],
+                      'Province',
+                      userProfile['province'] ?? 'Not provided',
                     ),
                   ]),
 
@@ -234,17 +278,17 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   // Contact Information
                   _buildSectionTitle('Contact Information'),
                   SizedBox(height: 12),
-                  _buildInfoCard([
+                  _buildInfoCard(userProfile, [
                     _buildInfoTile(
                       Icons.email,
                       'Email',
-                      _providerData['email'],
+                      userProfile['email'],
                     ),
                     Divider(height: 1),
                     _buildInfoTile(
                       Icons.phone,
                       'Phone',
-                      _providerData['phone'],
+                      userProfile['phone'],
                     ),
                   ]),
 
@@ -253,21 +297,25 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   // Performance Metrics
                   _buildSectionTitle('Performance Metrics'),
                   SizedBox(height: 12),
-                  _buildInfoCard([
+                  _buildInfoCard(userProfile, [
                     _buildInfoTile(
-                      Icons.speed,
-                      'Response Rate',
-                      '${_stats['responseRate']}%',
+                      Icons.verified_user,
+                      'Verification Status',
+                      userProfile['verificationStatus'] ?? 'pending',
                       trailing: Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.green.shade100,
+                          color: userProfile['isVerified'] == true 
+                            ? Colors.green.shade100 
+                            : Colors.orange.shade100,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'Excellent',
+                          userProfile['isVerified'] == true ? 'Verified' : 'Pending',
                           style: TextStyle(
-                            color: Colors.green.shade700,
+                            color: userProfile['isVerified'] == true 
+                              ? Colors.green.shade700 
+                              : Colors.orange.shade700,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -276,19 +324,23 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                     ),
                     Divider(height: 1),
                     _buildInfoTile(
-                      Icons.access_time,
-                      'Response Time',
-                      _stats['responseTime'],
+                      Icons.document_scanner,
+                      'Documents Uploaded',
+                      userProfile['documentsUploaded'] == true ? 'Yes' : 'No',
                       trailing: Container(
                         padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
+                          color: userProfile['documentsUploaded'] == true 
+                            ? Colors.green.shade100 
+                            : Colors.red.shade100,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
-                          'Fast',
+                          userProfile['documentsUploaded'] == true ? 'Complete' : 'Incomplete',
                           style: TextStyle(
-                            color: Colors.blue.shade700,
+                            color: userProfile['documentsUploaded'] == true 
+                              ? Colors.green.shade700 
+                              : Colors.red.shade700,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
                           ),
@@ -366,7 +418,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
                   // Joined Date
                   Center(
                     child: Text(
-                      'Member since ${_providerData['joinedDate']}',
+                      'Member since ${_formatDate(userProfile['createdAt'])}',
                       style: TextStyle(
                         color: AppColors.textSecondary,
                         fontSize: 12,
@@ -384,6 +436,18 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
+  String _formatDate(String? dateString) {
+    if (dateString == null) return 'Recently';
+    try {
+      final date = DateTime.parse(dateString);
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${months[date.month - 1]} ${date.year}';
+    } catch (e) {
+      return 'Recently';
+    }
+  }
+
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -395,7 +459,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  Widget _buildStatsGrid() {
+  Widget _buildStatsGrid(Map<String, dynamic> userProfile) {
     return GridView.count(
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
@@ -406,25 +470,25 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
       children: [
         _buildStatCard(
           'Total Earnings',
-          'Rs ${_stats['totalEarnings']}',
+          'Rs 0',
           Icons.account_balance_wallet,
           AppColors.primary,
         ),
         _buildStatCard(
           'Completed',
-          '${_stats['completedBookings']} Bookings',
+          '${userProfile['totalBookings'] ?? 0} Bookings',
           Icons.check_circle,
           Colors.green,
         ),
         _buildStatCard(
-          'Active Services',
-          '${_stats['activeServices']} Services',
-          Icons.agriculture,
-          Colors.blue,
+          'Verification',
+          userProfile['documentsUploaded'] == true ? 'Pending' : 'Not Verified',
+          Icons.verified_user,
+          userProfile['documentsUploaded'] == true ? Colors.orange : Colors.grey,
         ),
         _buildStatCard(
           'Rating',
-          '${_stats['rating']}/5.0',
+          '${userProfile['rating']?.toStringAsFixed(1) ?? '0.0'}/5.0',
           Icons.star,
           Colors.amber,
         ),
@@ -474,7 +538,7 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     );
   }
 
-  Widget _buildInfoCard(List<Widget> children) {
+  Widget _buildInfoCard(Map<String, dynamic> userProfile, List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,

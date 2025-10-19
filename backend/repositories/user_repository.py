@@ -5,7 +5,7 @@ User Repository - Neo4j Database Operations
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 from config.neo4j_config import get_neo4j_driver
-from models.user import UserType, SeekerNode, ProviderNode
+from models.user import UserType, SeekerNode, ProviderNode, VehicleNode, ServiceNode
 
 
 class UserRepository:
@@ -129,11 +129,14 @@ class UserRepository:
                 p.years_experience = $years_experience,
                 p.description = $description,
                 p.profile_image = $profile_image,
-                p.cnic_image = $cnic_image,
+                p.cnic_front_image = $cnic_front_image,
+                p.cnic_back_image = $cnic_back_image,
                 p.license_image = $license_image,
                 p.license_number = $license_number,
                 p.user_type = $user_type,
                 p.is_verified = $is_verified,
+                p.documents_uploaded = $documents_uploaded,
+                p.verification_status = $verification_status,
                 p.rating = $rating,
                 p.total_bookings = $total_bookings,
                 p.created_at = datetime($created_at),
@@ -804,3 +807,527 @@ class UserRepository:
                 })
             
             return similar_seekers
+    
+    # ==================== VEHICLE MANAGEMENT ====================
+    
+    def create_vehicle(self, vehicle: 'VehicleNode') -> Dict[str, Any]:
+        """
+        Create a new Vehicle node and link to Provider
+        
+        Args:
+            vehicle: VehicleNode instance
+        
+        Returns:
+            dict: Created vehicle data
+        """
+        from models.user import VehicleNode
+        
+        with self.driver.session() as session:
+            vehicle_dict = vehicle.to_dict()
+            
+            print(f"\n{'='*60}")
+            print(f"🚜 CREATING VEHICLE NODE IN NEO4J")
+            print(f"   Vehicle ID: {vehicle_dict.get('vehicle_id')}")
+            print(f"   Provider UID: {vehicle_dict.get('provider_uid')}")
+            print(f"   Name: {vehicle_dict.get('name')}")
+            print(f"   Type: {vehicle_dict.get('vehicle_type')}")
+            print(f"   Make: {vehicle_dict.get('make')}")
+            print(f"   Model: {vehicle_dict.get('model')}")
+            print(f"{'='*60}\n")
+            
+            query = """
+            MATCH (p:Provider {uid: $provider_uid})
+            CREATE (v:Vehicle)
+            SET v.vehicle_id = $vehicle_id,
+                v.provider_uid = $provider_uid,
+                v.name = $name,
+                v.vehicle_type = $vehicle_type,
+                v.make = $make,
+                v.model = $model,
+                v.year = $year,
+                v.registration_number = $registration_number,
+                v.capacity = $capacity,
+                v.condition = $condition,
+                v.vehicle_image = $vehicle_image,
+                v.additional_images = $additional_images,
+                v.has_insurance = $has_insurance,
+                v.insurance_expiry = $insurance_expiry,
+                v.is_available = $is_available,
+                v.city = $city,
+                v.province = $province,
+                v.price_per_hour = $price_per_hour,
+                v.price_per_day = $price_per_day,
+                v.description = $description,
+                v.created_at = datetime($created_at),
+                v.updated_at = datetime($updated_at)
+            CREATE (p)-[:OWNS]->(v)
+            RETURN v
+            """
+            
+            result = session.run(query, **vehicle_dict)
+            record = result.single()
+            
+            if record:
+                node_data = dict(record["v"])
+                print(f"✅ Vehicle created successfully")
+                print(f"   Vehicle ID: {node_data.get('vehicle_id')}\n")
+                return node_data
+            return None
+    
+    def get_provider_vehicles(self, provider_uid: str) -> List[Dict[str, Any]]:
+        """
+        Get all vehicles owned by a provider
+        
+        Args:
+            provider_uid: Provider Firebase UID
+        
+        Returns:
+            List of vehicle data dictionaries
+        """
+        with self.driver.session() as session:
+            query = """
+            MATCH (p:Provider {uid: $provider_uid})-[:OWNS]->(v:Vehicle)
+            RETURN v
+            ORDER BY v.created_at DESC
+            """
+            
+            result = session.run(query, provider_uid=provider_uid)
+            vehicles = []
+            
+            for record in result:
+                vehicle_data = dict(record["v"])
+                # Convert datetime objects to ISO format
+                if vehicle_data.get('created_at'):
+                    if hasattr(vehicle_data['created_at'], 'iso_format'):
+                        vehicle_data['created_at'] = vehicle_data['created_at'].iso_format()
+                    elif hasattr(vehicle_data['created_at'], 'isoformat'):
+                        vehicle_data['created_at'] = vehicle_data['created_at'].isoformat()
+                        
+                if vehicle_data.get('updated_at'):
+                    if hasattr(vehicle_data['updated_at'], 'iso_format'):
+                        vehicle_data['updated_at'] = vehicle_data['updated_at'].iso_format()
+                    elif hasattr(vehicle_data['updated_at'], 'isoformat'):
+                        vehicle_data['updated_at'] = vehicle_data['updated_at'].isoformat()
+                        
+                vehicles.append(vehicle_data)
+            
+            print(f"📋 Retrieved {len(vehicles)} vehicles for provider {provider_uid}")
+            return vehicles
+    
+    def get_vehicle_by_id(self, vehicle_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get vehicle by ID
+        
+        Args:
+            vehicle_id: Vehicle ID
+        
+        Returns:
+            Vehicle data or None
+        """
+        with self.driver.session() as session:
+            query = """
+            MATCH (v:Vehicle {vehicle_id: $vehicle_id})
+            RETURN v
+            """
+            
+            result = session.run(query, vehicle_id=vehicle_id)
+            record = result.single()
+            
+            if record:
+                vehicle_data = dict(record["v"])
+                # Convert datetime
+                if vehicle_data.get('created_at'):
+                    if hasattr(vehicle_data['created_at'], 'iso_format'):
+                        vehicle_data['created_at'] = vehicle_data['created_at'].iso_format()
+                    elif hasattr(vehicle_data['created_at'], 'isoformat'):
+                        vehicle_data['created_at'] = vehicle_data['created_at'].isoformat()
+                        
+                if vehicle_data.get('updated_at'):
+                    if hasattr(vehicle_data['updated_at'], 'iso_format'):
+                        vehicle_data['updated_at'] = vehicle_data['updated_at'].iso_format()
+                    elif hasattr(vehicle_data['updated_at'], 'isoformat'):
+                        vehicle_data['updated_at'] = vehicle_data['updated_at'].isoformat()
+                        
+                return vehicle_data
+            return None
+    
+    def update_vehicle(self, vehicle_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update vehicle properties
+        
+        Args:
+            vehicle_id: Vehicle ID
+            update_data: Dictionary of fields to update
+        
+        Returns:
+            Updated vehicle data or None
+        """
+        with self.driver.session() as session:
+            print(f"\n{'='*60}")
+            print(f"🔧 UPDATING VEHICLE IN NEO4J")
+            print(f"   Vehicle ID: {vehicle_id}")
+            print(f"   Fields to update: {list(update_data.keys())}")
+            print(f"{'='*60}\n")
+            
+            # Build SET clause dynamically
+            set_clauses = []
+            params = {"vehicle_id": vehicle_id}
+            
+            for key, value in update_data.items():
+                set_clauses.append(f"v.{key} = ${key}")
+                params[key] = value
+            
+            # Always update timestamp
+            set_clauses.append("v.updated_at = datetime()")
+            
+            set_clause = ", ".join(set_clauses)
+            
+            query = f"""
+            MATCH (v:Vehicle {{vehicle_id: $vehicle_id}})
+            SET {set_clause}
+            RETURN v
+            """
+            
+            result = session.run(query, params)
+            record = result.single()
+            
+            if record:
+                vehicle_data = dict(record["v"])
+                # Convert datetime
+                if vehicle_data.get('created_at'):
+                    if hasattr(vehicle_data['created_at'], 'iso_format'):
+                        vehicle_data['created_at'] = vehicle_data['created_at'].iso_format()
+                    elif hasattr(vehicle_data['created_at'], 'isoformat'):
+                        vehicle_data['created_at'] = vehicle_data['created_at'].isoformat()
+                        
+                if vehicle_data.get('updated_at'):
+                    if hasattr(vehicle_data['updated_at'], 'iso_format'):
+                        vehicle_data['updated_at'] = vehicle_data['updated_at'].iso_format()
+                    elif hasattr(vehicle_data['updated_at'], 'isoformat'):
+                        vehicle_data['updated_at'] = vehicle_data['updated_at'].isoformat()
+                        
+                print(f"✅ Vehicle updated successfully\n")
+                return vehicle_data
+            return None
+    
+    def delete_vehicle(self, vehicle_id: str) -> bool:
+        """
+        Delete vehicle and all related services (CASCADE)
+        
+        Args:
+            vehicle_id: Vehicle ID
+        
+        Returns:
+            True if deleted, False otherwise
+        """
+        with self.driver.session() as session:
+            print(f"\n{'='*60}")
+            print(f"🗑️  DELETING VEHICLE (CASCADE)")
+            print(f"   Vehicle ID: {vehicle_id}")
+            print(f"{'='*60}\n")
+            
+            # First, get count of services that will be deleted
+            count_query = """
+            MATCH (v:Vehicle {vehicle_id: $vehicle_id})-[:PROVIDES]->(s:Service)
+            RETURN count(s) as service_count
+            """
+            
+            count_result = session.run(count_query, vehicle_id=vehicle_id)
+            count_record = count_result.single()
+            service_count = count_record["service_count"] if count_record else 0
+            
+            # Delete vehicle and all related services
+            delete_query = """
+            MATCH (v:Vehicle {vehicle_id: $vehicle_id})
+            OPTIONAL MATCH (v)-[:PROVIDES]->(s:Service)
+            OPTIONAL MATCH (p:Provider)-[r:OFFERS]->(s)
+            DELETE r, s, v
+            RETURN count(v) as deleted_count
+            """
+            
+            result = session.run(delete_query, vehicle_id=vehicle_id)
+            record = result.single()
+            
+            if record and record["deleted_count"] > 0:
+                print(f"✅ Vehicle deleted successfully")
+                print(f"   Also deleted {service_count} related services\n")
+                return True
+            
+            print(f"❌ Vehicle not found\n")
+            return False
+    
+    # ==================== SERVICE MANAGEMENT ====================
+    
+    def create_service(self, service: 'ServiceNode') -> Dict[str, Any]:
+        """
+        Create a new Service node and link to Provider and Vehicle
+        
+        Args:
+            service: ServiceNode instance
+        
+        Returns:
+            dict: Created service data
+        """
+        from models.user import ServiceNode
+        
+        with self.driver.session() as session:
+            service_dict = service.to_dict()
+            
+            print(f"\n{'='*60}")
+            print(f"🛠️  CREATING SERVICE NODE IN NEO4J")
+            print(f"   Service ID: {service_dict.get('service_id')}")
+            print(f"   Vehicle ID: {service_dict.get('vehicle_id')}")
+            print(f"   Provider UID: {service_dict.get('provider_uid')}")
+            print(f"   Service Name: {service_dict.get('service_name')}")
+            print(f"   Category: {service_dict.get('service_category')}")
+            print(f"{'='*60}\n")
+            
+            query = """
+            MATCH (p:Provider {uid: $provider_uid})
+            MATCH (v:Vehicle {vehicle_id: $vehicle_id})
+            CREATE (s:Service)
+            SET s.service_id = $service_id,
+                s.vehicle_id = $vehicle_id,
+                s.provider_uid = $provider_uid,
+                s.service_name = $service_name,
+                s.service_category = $service_category,
+                s.price_per_hour = $price_per_hour,
+                s.price_per_day = $price_per_day,
+                s.price_per_service = $price_per_service,
+                s.description = $description,
+                s.service_area = $service_area,
+                s.min_booking_duration = $min_booking_duration,
+                s.is_active = $is_active,
+                s.available_days = $available_days,
+                s.available_hours = $available_hours,
+                s.operator_included = $operator_included,
+                s.fuel_included = $fuel_included,
+                s.transportation_included = $transportation_included,
+                s.total_bookings = $total_bookings,
+                s.rating = $rating,
+                s.created_at = datetime($created_at),
+                s.updated_at = datetime($updated_at)
+            CREATE (p)-[:OFFERS]->(s)
+            CREATE (v)-[:PROVIDES]->(s)
+            RETURN s
+            """
+            
+            result = session.run(query, **service_dict)
+            record = result.single()
+            
+            if record:
+                node_data = dict(record["s"])
+                print(f"✅ Service created successfully")
+                print(f"   Service ID: {node_data.get('service_id')}\n")
+                return node_data
+            return None
+    
+    def get_vehicle_services(self, vehicle_id: str) -> List[Dict[str, Any]]:
+        """
+        Get all services for a specific vehicle
+        
+        Args:
+            vehicle_id: Vehicle ID
+        
+        Returns:
+            List of service data dictionaries
+        """
+        with self.driver.session() as session:
+            query = """
+            MATCH (v:Vehicle {vehicle_id: $vehicle_id})-[:PROVIDES]->(s:Service)
+            RETURN s
+            ORDER BY s.created_at DESC
+            """
+            
+            result = session.run(query, vehicle_id=vehicle_id)
+            services = []
+            
+            for record in result:
+                service_data = dict(record["s"])
+                # Convert datetime
+                if service_data.get('created_at'):
+                    if hasattr(service_data['created_at'], 'iso_format'):
+                        service_data['created_at'] = service_data['created_at'].iso_format()
+                    elif hasattr(service_data['created_at'], 'isoformat'):
+                        service_data['created_at'] = service_data['created_at'].isoformat()
+                        
+                if service_data.get('updated_at'):
+                    if hasattr(service_data['updated_at'], 'iso_format'):
+                        service_data['updated_at'] = service_data['updated_at'].iso_format()
+                    elif hasattr(service_data['updated_at'], 'isoformat'):
+                        service_data['updated_at'] = service_data['updated_at'].isoformat()
+                        
+                services.append(service_data)
+            
+            print(f"📋 Retrieved {len(services)} services for vehicle {vehicle_id}")
+            return services
+    
+    def get_provider_services(self, provider_uid: str) -> List[Dict[str, Any]]:
+        """
+        Get all services offered by a provider
+        
+        Args:
+            provider_uid: Provider Firebase UID
+        
+        Returns:
+            List of service data dictionaries
+        """
+        with self.driver.session() as session:
+            query = """
+            MATCH (p:Provider {uid: $provider_uid})-[:OFFERS]->(s:Service)
+            RETURN s
+            ORDER BY s.created_at DESC
+            """
+            
+            result = session.run(query, provider_uid=provider_uid)
+            services = []
+            
+            for record in result:
+                service_data = dict(record["s"])
+                # Convert datetime
+                if service_data.get('created_at'):
+                    if hasattr(service_data['created_at'], 'iso_format'):
+                        service_data['created_at'] = service_data['created_at'].iso_format()
+                    elif hasattr(service_data['created_at'], 'isoformat'):
+                        service_data['created_at'] = service_data['created_at'].isoformat()
+                        
+                if service_data.get('updated_at'):
+                    if hasattr(service_data['updated_at'], 'iso_format'):
+                        service_data['updated_at'] = service_data['updated_at'].iso_format()
+                    elif hasattr(service_data['updated_at'], 'isoformat'):
+                        service_data['updated_at'] = service_data['updated_at'].isoformat()
+                        
+                services.append(service_data)
+            
+            print(f"📋 Retrieved {len(services)} services for provider {provider_uid}")
+            return services
+    
+    def get_service_by_id(self, service_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get service by ID
+        
+        Args:
+            service_id: Service ID
+        
+        Returns:
+            Service data or None
+        """
+        with self.driver.session() as session:
+            query = """
+            MATCH (s:Service {service_id: $service_id})
+            RETURN s
+            """
+            
+            result = session.run(query, service_id=service_id)
+            record = result.single()
+            
+            if record:
+                service_data = dict(record["s"])
+                # Convert datetime
+                if service_data.get('created_at'):
+                    if hasattr(service_data['created_at'], 'iso_format'):
+                        service_data['created_at'] = service_data['created_at'].iso_format()
+                    elif hasattr(service_data['created_at'], 'isoformat'):
+                        service_data['created_at'] = service_data['created_at'].isoformat()
+                        
+                if service_data.get('updated_at'):
+                    if hasattr(service_data['updated_at'], 'iso_format'):
+                        service_data['updated_at'] = service_data['updated_at'].iso_format()
+                    elif hasattr(service_data['updated_at'], 'isoformat'):
+                        service_data['updated_at'] = service_data['updated_at'].isoformat()
+                        
+                return service_data
+            return None
+    
+    def update_service(self, service_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """
+        Update service properties
+        
+        Args:
+            service_id: Service ID
+            update_data: Dictionary of fields to update
+        
+        Returns:
+            Updated service data or None
+        """
+        with self.driver.session() as session:
+            print(f"\n{'='*60}")
+            print(f"🔧 UPDATING SERVICE IN NEO4J")
+            print(f"   Service ID: {service_id}")
+            print(f"   Fields to update: {list(update_data.keys())}")
+            print(f"{'='*60}\n")
+            
+            # Build SET clause dynamically
+            set_clauses = []
+            params = {"service_id": service_id}
+            
+            for key, value in update_data.items():
+                set_clauses.append(f"s.{key} = ${key}")
+                params[key] = value
+            
+            # Always update timestamp
+            set_clauses.append("s.updated_at = datetime()")
+            
+            set_clause = ", ".join(set_clauses)
+            
+            query = f"""
+            MATCH (s:Service {{service_id: $service_id}})
+            SET {set_clause}
+            RETURN s
+            """
+            
+            result = session.run(query, params)
+            record = result.single()
+            
+            if record:
+                service_data = dict(record["s"])
+                # Convert datetime
+                if service_data.get('created_at'):
+                    if hasattr(service_data['created_at'], 'iso_format'):
+                        service_data['created_at'] = service_data['created_at'].iso_format()
+                    elif hasattr(service_data['created_at'], 'isoformat'):
+                        service_data['created_at'] = service_data['created_at'].isoformat()
+                        
+                if service_data.get('updated_at'):
+                    if hasattr(service_data['updated_at'], 'iso_format'):
+                        service_data['updated_at'] = service_data['updated_at'].iso_format()
+                    elif hasattr(service_data['updated_at'], 'isoformat'):
+                        service_data['updated_at'] = service_data['updated_at'].isoformat()
+                        
+                print(f"✅ Service updated successfully\n")
+                return service_data
+            return None
+    
+    def delete_service(self, service_id: str) -> bool:
+        """
+        Delete a service
+        
+        Args:
+            service_id: Service ID
+        
+        Returns:
+            True if deleted, False otherwise
+        """
+        with self.driver.session() as session:
+            print(f"\n{'='*60}")
+            print(f"🗑️  DELETING SERVICE")
+            print(f"   Service ID: {service_id}")
+            print(f"{'='*60}\n")
+            
+            query = """
+            MATCH (s:Service {service_id: $service_id})
+            OPTIONAL MATCH (p:Provider)-[r1:OFFERS]->(s)
+            OPTIONAL MATCH (v:Vehicle)-[r2:PROVIDES]->(s)
+            DELETE r1, r2, s
+            RETURN count(s) as deleted_count
+            """
+            
+            result = session.run(query, service_id=service_id)
+            record = result.single()
+            
+            if record and record["deleted_count"] > 0:
+                print(f"✅ Service deleted successfully\n")
+                return True
+            
+            print(f"❌ Service not found\n")
+            return False

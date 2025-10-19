@@ -57,13 +57,28 @@ def test_network_connectivity(uri: str) -> bool:
 
 def get_neo4j_driver() -> Driver:
     """
-    Get Neo4j driver instance (singleton pattern)
+    Get Neo4j driver instance (singleton pattern) with automatic reconnection
     Tries multiple connection strategies for Neo4j Aura
     
     Returns:
         Driver: Neo4j driver instance
     """
     global _neo4j_driver
+    
+    # If driver exists, verify it's still working
+    if _neo4j_driver is not None:
+        try:
+            _neo4j_driver.verify_connectivity()
+            return _neo4j_driver
+        except Exception as e:
+            print(f"⚠️  Existing Neo4j connection is defunct: {str(e)}")
+            print("🔄 Reconnecting to Neo4j...")
+            # Close the old driver
+            try:
+                _neo4j_driver.close()
+            except:
+                pass
+            _neo4j_driver = None
     
     if _neo4j_driver is None:
         # Try different URI schemes if the primary one fails

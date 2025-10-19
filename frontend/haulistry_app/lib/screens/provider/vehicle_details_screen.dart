@@ -63,7 +63,8 @@ class _VehicleDetailsScreenState extends State<VehicleDetailsScreen> {
     if (_formKey.currentState!.validate()) {
       // Create vehicle object
       final vehicle = Vehicle(
-        id: 'VEH${DateTime.now().millisecondsSinceEpoch}',
+        vehicleId: 'VEH${DateTime.now().millisecondsSinceEpoch}',
+        providerUid: 'TEMP_UID', // Will be set by provider
         vehicleType: _selectedVehicleType!,
         vehicleName: _vehicleNameController.text,
         make: _makeController.text,

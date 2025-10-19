@@ -14,7 +14,17 @@ from .types import (
     LoginInput,
     ErrorResponse,
     Seeker,
-    Provider
+    Provider,
+    # Vehicle & Service types
+    Vehicle,
+    Service,
+    AddVehicleInput,
+    UpdateVehicleInput,
+    AddServiceInput,
+    UpdateServiceInput,
+    VehicleResponse,
+    ServiceResponse,
+    GenericResponse
 )
 from services.auth_service import AuthService
 from pydantic import ValidationError
@@ -150,9 +160,19 @@ class Mutation:
                 province=result['user'].get('province'),
                 years_experience=result['user'].get('years_experience'),
                 description=result['user'].get('description'),
+                # Document images (initially None)
+                profile_image=result['user'].get('profile_image'),
+                cnic_front_image=result['user'].get('cnic_front_image'),
+                cnic_back_image=result['user'].get('cnic_back_image'),
+                license_image=result['user'].get('license_image'),
+                license_number=result['user'].get('license_number'),
+                # Verification (initially False/pending)
+                is_verified=result['user'].get('is_verified', False),
+                documents_uploaded=result['user'].get('documents_uploaded', False),
+                verification_status=result['user'].get('verification_status', 'pending'),
+                # Stats
                 rating=result['user'].get('rating'),
                 total_bookings=result['user'].get('total_bookings', 0),
-                is_verified=result['user'].get('is_verified', False),
                 created_at=result['user']['created_at'],
                 updated_at=result['user']['updated_at']
             )
@@ -228,9 +248,19 @@ class Mutation:
                     province=result['user'].get('province'),
                     years_experience=result['user'].get('years_experience'),
                     description=result['user'].get('description'),
+                    # Document images
+                    profile_image=result['user'].get('profile_image'),
+                    cnic_front_image=result['user'].get('cnic_front_image'),
+                    cnic_back_image=result['user'].get('cnic_back_image'),
+                    license_image=result['user'].get('license_image'),
+                    license_number=result['user'].get('license_number'),
+                    # Verification
+                    is_verified=result['user'].get('is_verified', False),
+                    documents_uploaded=result['user'].get('documents_uploaded', False),
+                    verification_status=result['user'].get('verification_status', 'pending'),
+                    # Stats
                     rating=result['user'].get('rating'),
                     total_bookings=result['user'].get('total_bookings', 0),
-                    is_verified=result['user'].get('is_verified', False),
                     created_at=result['user']['created_at'],
                     updated_at=result['user']['updated_at']
                 )
@@ -329,6 +359,17 @@ class Mutation:
                 update_data['years_experience'] = input.years_experience
             if input.description is not None:
                 update_data['description'] = input.description
+            # Document images
+            if input.profile_image is not None:
+                update_data['profile_image'] = input.profile_image
+            if input.cnic_front_image is not None:
+                update_data['cnic_front_image'] = input.cnic_front_image
+            if input.cnic_back_image is not None:
+                update_data['cnic_back_image'] = input.cnic_back_image
+            if input.license_image is not None:
+                update_data['license_image'] = input.license_image
+            if input.license_number is not None:
+                update_data['license_number'] = input.license_number
             
             print(f"📝 Updating {len(update_data)} fields in Neo4j...")
             
@@ -338,8 +379,25 @@ class Mutation:
             if not updated_user:
                 raise Exception("Failed to update provider profile. User not found.")
             
+            # Check if all 4 required documents are now uploaded
+            has_all_docs = all([
+                updated_user.get('profile_image'),
+                updated_user.get('cnic_front_image'),
+                updated_user.get('cnic_back_image'),
+                updated_user.get('license_image')
+            ])
+            
+            # If all documents are uploaded, update verification status
+            if has_all_docs and not updated_user.get('documents_uploaded'):
+                verification_update = {
+                    'documents_uploaded': True,
+                    'verification_status': 'pending'
+                }
+                updated_user = user_repo.update_provider_profile(input.uid, verification_update)
+            
             print(f"✅ Provider profile updated successfully")
-            print(f"   Updated fields: {list(update_data.keys())}\n")
+            print(f"   Updated fields: {list(update_data.keys())}")
+            print(f"   Documents uploaded: {updated_user.get('documents_uploaded', False)}\n")
             
             # Create Provider object from result
             user = Provider(
@@ -357,9 +415,19 @@ class Mutation:
                 province=updated_user.get('province'),
                 years_experience=updated_user.get('years_experience'),
                 description=updated_user.get('description'),
+                # Document images
+                profile_image=updated_user.get('profile_image'),
+                cnic_front_image=updated_user.get('cnic_front_image'),
+                cnic_back_image=updated_user.get('cnic_back_image'),
+                license_image=updated_user.get('license_image'),
+                license_number=updated_user.get('license_number'),
+                # Verification
+                is_verified=updated_user.get('is_verified', False),
+                documents_uploaded=updated_user.get('documents_uploaded', False),
+                verification_status=updated_user.get('verification_status', 'pending'),
+                # Stats
                 rating=updated_user.get('rating'),
                 total_bookings=updated_user.get('total_bookings', 0),
-                is_verified=updated_user.get('is_verified', False),
                 created_at=updated_user['created_at'],
                 updated_at=updated_user['updated_at']
             )
@@ -559,5 +627,408 @@ class Mutation:
                 message=str(e),
                 token=None,
                 user=None
+            )
+    
+    # ==================== VEHICLE MUTATIONS ====================
+    
+    @strawberry.mutation
+    async def add_vehicle(self, input: 'AddVehicleInput') -> 'VehicleResponse':
+        """
+        Add a new vehicle for a provider
+        
+        Args:
+            input: Vehicle details including provider_uid, vehicle info, pricing
+            
+        Returns:
+            VehicleResponse with success status, message, and created vehicle
+        """
+        print(f"\n{'='*60}")
+        print(f"🚗 ADD_VEHICLE MUTATION CALLED")
+        print(f"   Provider UID: {input.provider_uid}")
+        print(f"   Vehicle Name: {input.name}")
+        print(f"   Type: {input.vehicle_type}")
+        print(f"{'='*60}\n")
+        
+        try:
+            import uuid
+            from models.user import VehicleNode
+            from repositories.user_repository import UserRepository
+            
+            # Generate vehicle_id
+            vehicle_id = str(uuid.uuid4())
+            
+            # Create VehicleNode
+            vehicle = VehicleNode(
+                vehicle_id=vehicle_id,
+                provider_uid=input.provider_uid,
+                name=input.name,
+                vehicle_type=input.vehicle_type,
+                make=input.make,
+                model=input.model,
+                year=input.year,
+                registration_number=input.registration_number,
+                capacity=input.capacity,
+                condition=input.condition,
+                vehicle_image=input.vehicle_image,
+                additional_images=input.additional_images,
+                has_insurance=input.has_insurance,
+                insurance_expiry=input.insurance_expiry,
+                is_available=input.is_available,
+                city=input.city,
+                province=input.province,
+                price_per_hour=input.price_per_hour,
+                price_per_day=input.price_per_day,
+                description=input.description
+            )
+            
+            # Save to Neo4j
+            user_repo = UserRepository()
+            created_vehicle = user_repo.create_vehicle(vehicle)
+            
+            if created_vehicle:
+                from .types import Vehicle, VehicleResponse
+                return VehicleResponse(
+                    success=True,
+                    message="Vehicle added successfully!",
+                    vehicle=Vehicle(**created_vehicle)
+                )
+            
+            return VehicleResponse(
+                success=False,
+                message="Failed to create vehicle",
+                vehicle=None
+            )
+            
+        except Exception as e:
+            print(f"❌ ADD VEHICLE FAILED: {str(e)}\n")
+            from .types import VehicleResponse
+            return VehicleResponse(
+                success=False,
+                message=f"Error: {str(e)}",
+                vehicle=None
+            )
+    
+    @strawberry.mutation
+    async def update_vehicle(self, input: 'UpdateVehicleInput') -> 'VehicleResponse':
+        """
+        Update an existing vehicle
+        
+        Args:
+            input: UpdateVehicleInput with vehicle_id and fields to update
+            
+        Returns:
+            VehicleResponse with success status and updated vehicle
+        """
+        print(f"\n{'='*60}")
+        print(f"🔧 UPDATE_VEHICLE MUTATION CALLED")
+        print(f"   Vehicle ID: {input.vehicle_id}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            
+            # Build update dict (only non-None fields)
+            update_data = {}
+            if input.name is not None:
+                update_data['name'] = input.name
+            if input.vehicle_type is not None:
+                update_data['vehicle_type'] = input.vehicle_type
+            if input.make is not None:
+                update_data['make'] = input.make
+            if input.model is not None:
+                update_data['model'] = input.model
+            if input.year is not None:
+                update_data['year'] = input.year
+            if input.registration_number is not None:
+                update_data['registration_number'] = input.registration_number
+            if input.capacity is not None:
+                update_data['capacity'] = input.capacity
+            if input.condition is not None:
+                update_data['condition'] = input.condition
+            if input.vehicle_image is not None:
+                update_data['vehicle_image'] = input.vehicle_image
+            if input.additional_images is not None:
+                update_data['additional_images'] = input.additional_images
+            if input.has_insurance is not None:
+                update_data['has_insurance'] = input.has_insurance
+            if input.insurance_expiry is not None:
+                update_data['insurance_expiry'] = input.insurance_expiry
+            if input.is_available is not None:
+                update_data['is_available'] = input.is_available
+            if input.city is not None:
+                update_data['city'] = input.city
+            if input.province is not None:
+                update_data['province'] = input.province
+            if input.price_per_hour is not None:
+                update_data['price_per_hour'] = input.price_per_hour
+            if input.price_per_day is not None:
+                update_data['price_per_day'] = input.price_per_day
+            if input.description is not None:
+                update_data['description'] = input.description
+            
+            # Update in Neo4j
+            user_repo = UserRepository()
+            updated_vehicle = user_repo.update_vehicle(input.vehicle_id, update_data)
+            
+            if updated_vehicle:
+                from .types import Vehicle, VehicleResponse
+                return VehicleResponse(
+                    success=True,
+                    message="Vehicle updated successfully!",
+                    vehicle=Vehicle(**updated_vehicle)
+                )
+            
+            return VehicleResponse(
+                success=False,
+                message="Vehicle not found",
+                vehicle=None
+            )
+            
+        except Exception as e:
+            print(f"❌ UPDATE VEHICLE FAILED: {str(e)}\n")
+            from .types import VehicleResponse
+            return VehicleResponse(
+                success=False,
+                message=f"Error: {str(e)}",
+                vehicle=None
+            )
+    
+    @strawberry.mutation
+    async def delete_vehicle(self, vehicle_id: str) -> 'GenericResponse':
+        """
+        Delete a vehicle and all its related services (CASCADE DELETE)
+        
+        Args:
+            vehicle_id: ID of vehicle to delete
+            
+        Returns:
+            GenericResponse with success status and message
+        """
+        print(f"\n{'='*60}")
+        print(f"🗑️  DELETE_VEHICLE MUTATION CALLED")
+        print(f"   Vehicle ID: {vehicle_id}")
+        print(f"   ⚠️  Will also delete all related services (CASCADE)")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            
+            user_repo = UserRepository()
+            success = user_repo.delete_vehicle(vehicle_id)
+            
+            if success:
+                from .types import GenericResponse
+                return GenericResponse(
+                    success=True,
+                    message="Vehicle and related services deleted successfully"
+                )
+            
+            return GenericResponse(
+                success=False,
+                message="Vehicle not found"
+            )
+            
+        except Exception as e:
+            print(f"❌ DELETE VEHICLE FAILED: {str(e)}\n")
+            from .types import GenericResponse
+            return GenericResponse(
+                success=False,
+                message=f"Error: {str(e)}"
+            )
+    
+    # ==================== SERVICE MUTATIONS ====================
+    
+    @strawberry.mutation
+    async def add_service(self, input: 'AddServiceInput') -> 'ServiceResponse':
+        """
+        Add a new service for a vehicle
+        
+        Args:
+            input: Service details including vehicle_id, provider_uid, service info
+            
+        Returns:
+            ServiceResponse with success status, message, and created service
+        """
+        print(f"\n{'='*60}")
+        print(f"🛠️  ADD_SERVICE MUTATION CALLED")
+        print(f"   Provider UID: {input.provider_uid}")
+        print(f"   Vehicle ID: {input.vehicle_id}")
+        print(f"   Service Name: {input.service_name}")
+        print(f"   Category: {input.service_category}")
+        print(f"{'='*60}\n")
+        
+        try:
+            import uuid
+            from models.user import ServiceNode
+            from repositories.user_repository import UserRepository
+            
+            # Generate service_id
+            service_id = str(uuid.uuid4())
+            
+            # Create ServiceNode
+            service = ServiceNode(
+                service_id=service_id,
+                vehicle_id=input.vehicle_id,
+                provider_uid=input.provider_uid,
+                service_name=input.service_name,
+                service_category=input.service_category,
+                price_per_hour=input.price_per_hour,
+                price_per_day=input.price_per_day,
+                price_per_service=input.price_per_service,
+                description=input.description,
+                service_area=input.service_area,
+                min_booking_duration=input.min_booking_duration,
+                is_active=input.is_active,
+                available_days=input.available_days,
+                available_hours=input.available_hours,
+                operator_included=input.operator_included,
+                fuel_included=input.fuel_included,
+                transportation_included=input.transportation_included
+            )
+            
+            # Save to Neo4j
+            user_repo = UserRepository()
+            created_service = user_repo.create_service(service)
+            
+            if created_service:
+                from .types import Service, ServiceResponse
+                return ServiceResponse(
+                    success=True,
+                    message="Service added successfully!",
+                    service=Service(**created_service)
+                )
+            
+            return ServiceResponse(
+                success=False,
+                message="Failed to create service",
+                service=None
+            )
+            
+        except Exception as e:
+            print(f"❌ ADD SERVICE FAILED: {str(e)}\n")
+            from .types import ServiceResponse
+            return ServiceResponse(
+                success=False,
+                message=f"Error: {str(e)}",
+                service=None
+            )
+    
+    @strawberry.mutation
+    async def update_service(self, input: 'UpdateServiceInput') -> 'ServiceResponse':
+        """
+        Update an existing service
+        
+        Args:
+            input: UpdateServiceInput with service_id and fields to update
+            
+        Returns:
+            ServiceResponse with success status and updated service
+        """
+        print(f"\n{'='*60}")
+        print(f"🔧 UPDATE_SERVICE MUTATION CALLED")
+        print(f"   Service ID: {input.service_id}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            
+            # Build update dict (only non-None fields)
+            update_data = {}
+            if input.service_name is not None:
+                update_data['service_name'] = input.service_name
+            if input.service_category is not None:
+                update_data['service_category'] = input.service_category
+            if input.price_per_hour is not None:
+                update_data['price_per_hour'] = input.price_per_hour
+            if input.price_per_day is not None:
+                update_data['price_per_day'] = input.price_per_day
+            if input.price_per_service is not None:
+                update_data['price_per_service'] = input.price_per_service
+            if input.description is not None:
+                update_data['description'] = input.description
+            if input.service_area is not None:
+                update_data['service_area'] = input.service_area
+            if input.min_booking_duration is not None:
+                update_data['min_booking_duration'] = input.min_booking_duration
+            if input.is_active is not None:
+                update_data['is_active'] = input.is_active
+            if input.available_days is not None:
+                update_data['available_days'] = input.available_days
+            if input.available_hours is not None:
+                update_data['available_hours'] = input.available_hours
+            if input.operator_included is not None:
+                update_data['operator_included'] = input.operator_included
+            if input.fuel_included is not None:
+                update_data['fuel_included'] = input.fuel_included
+            if input.transportation_included is not None:
+                update_data['transportation_included'] = input.transportation_included
+            
+            # Update in Neo4j
+            user_repo = UserRepository()
+            updated_service = user_repo.update_service(input.service_id, update_data)
+            
+            if updated_service:
+                from .types import Service, ServiceResponse
+                return ServiceResponse(
+                    success=True,
+                    message="Service updated successfully!",
+                    service=Service(**updated_service)
+                )
+            
+            return ServiceResponse(
+                success=False,
+                message="Service not found",
+                service=None
+            )
+            
+        except Exception as e:
+            print(f"❌ UPDATE SERVICE FAILED: {str(e)}\n")
+            from .types import ServiceResponse
+            return ServiceResponse(
+                success=False,
+                message=f"Error: {str(e)}",
+                service=None
+            )
+    
+    @strawberry.mutation
+    async def delete_service(self, service_id: str) -> 'GenericResponse':
+        """
+        Delete a service
+        
+        Args:
+            service_id: ID of service to delete
+            
+        Returns:
+            GenericResponse with success status and message
+        """
+        print(f"\n{'='*60}")
+        print(f"🗑️  DELETE_SERVICE MUTATION CALLED")
+        print(f"   Service ID: {service_id}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            
+            user_repo = UserRepository()
+            success = user_repo.delete_service(service_id)
+            
+            if success:
+                from .types import GenericResponse
+                return GenericResponse(
+                    success=True,
+                    message="Service deleted successfully"
+                )
+            
+            return GenericResponse(
+                success=False,
+                message="Service not found"
+            )
+            
+        except Exception as e:
+            print(f"❌ DELETE SERVICE FAILED: {str(e)}\n")
+            from .types import GenericResponse
+            return GenericResponse(
+                success=False,
+                message=f"Error: {str(e)}"
             )
 

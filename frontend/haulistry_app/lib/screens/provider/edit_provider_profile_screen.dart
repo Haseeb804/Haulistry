@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_utils.dart';
+import '../../services/auth_service.dart';
 
 class EditProviderProfileScreen extends StatefulWidget {
   const EditProviderProfileScreen({super.key});
@@ -14,33 +19,58 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
   bool _isLoading = false;
 
   // Controllers - Personal & Business Information
-  final _nameController = TextEditingController(text: 'Ali Traders');
-  final _businessNameController = TextEditingController(text: 'Ali Agricultural Services');
-  final _emailController = TextEditingController(text: 'ali.traders@example.com');
-  final _phoneController = TextEditingController(text: '+92 300 1234567');
-  final _cnicController = TextEditingController(text: '12345-1234567-1');
-  final _experienceController = TextEditingController(text: '5');
-  final _addressController = TextEditingController(text: 'Main Street, Faisalabad');
-  final _cityController = TextEditingController(text: 'Faisalabad');
-  final _descriptionController = TextEditingController(
-    text: 'Professional agricultural equipment provider with 5+ years of experience',
-  );
+  late final TextEditingController _nameController;
+  late final TextEditingController _businessNameController;
+  late final TextEditingController _emailController;
+  late final TextEditingController _phoneController;
+  late final TextEditingController _cnicController;
+  late final TextEditingController _experienceController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _cityController;
+  late final TextEditingController _descriptionController;
   
-  // Controllers - Vehicle Information
-  final _vehicleNameController = TextEditingController(text: 'Heavy Duty Harvester');
-  final _makeController = TextEditingController(text: 'John Deere');
-  final _modelController = TextEditingController(text: '9RX');
-  final _yearController = TextEditingController(text: '2023');
-  final _registrationController = TextEditingController(text: 'LHR-5678');
-  final _capacityController = TextEditingController(text: '500 HP');
-  final _priceController = TextEditingController(text: '5000');
+  String? _selectedProvince;
+  String? _selectedServiceType;
+  bool _isUploadingImage = false;
+  String? _profileImagePath;
+  
+  // Document images
+  String? _cnicFrontImage;
+  String? _cnicBackImage;
+  String? _licenseImage;
+  bool _isUploadingDocument = false;
+  String? _currentUploadingDocument; // Track which document is being uploaded
 
-  String? _selectedProvince = 'Punjab';
-  String? _selectedServiceType = 'Agricultural Machinery';
-  String? _selectedVehicleType = 'Harvester';
-  String? _selectedCondition = 'Excellent';
-  bool _hasInsurance = true;
-  bool _isAvailable = true;
+  @override
+  void initState() {
+    super.initState();
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final userProfile = authService.userProfile;
+    
+    // Initialize profile image
+    _profileImagePath = userProfile?['profileImage'];
+    
+    // Initialize document images
+    _cnicFrontImage = userProfile?['cnicFrontImage'];
+    _cnicBackImage = userProfile?['cnicBackImage'];
+    _licenseImage = userProfile?['licenseImage'];
+    
+    // Initialize controllers with real user data
+    _nameController = TextEditingController(text: userProfile?['fullName'] ?? '');
+    _businessNameController = TextEditingController(text: userProfile?['businessName'] ?? '');
+    _emailController = TextEditingController(text: userProfile?['email'] ?? '');
+    _phoneController = TextEditingController(text: userProfile?['phone'] ?? '');
+    _cnicController = TextEditingController(text: userProfile?['cnicNumber'] ?? '');
+    _experienceController = TextEditingController(
+      text: userProfile?['yearsExperience']?.toString() ?? ''
+    );
+    _addressController = TextEditingController(text: userProfile?['address'] ?? '');
+    _cityController = TextEditingController(text: userProfile?['city'] ?? '');
+    _descriptionController = TextEditingController(text: userProfile?['description'] ?? '');
+    
+    _selectedProvince = userProfile?['province'];
+    _selectedServiceType = userProfile?['serviceType'];
+  }
   
   final List<String> _provinces = [
     'Punjab',
@@ -58,26 +88,6 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     'Agricultural Machinery',
     'Logistics & Cargo',
   ];
-  
-  final List<String> _vehicleTypes = [
-    'Harvester',
-    'Tractor',
-    'Crane',
-    'Excavator',
-    'Bulldozer',
-    'Loader',
-    'Dump Truck',
-    'Concrete Mixer',
-    'Forklift',
-    'Other',
-  ];
-  
-  final List<String> _conditions = [
-    'Excellent',
-    'Good',
-    'Fair',
-    'Average',
-  ];
 
   @override
   void dispose() {
@@ -90,18 +100,20 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     _addressController.dispose();
     _cityController.dispose();
     _descriptionController.dispose();
-    _vehicleNameController.dispose();
-    _makeController.dispose();
-    _modelController.dispose();
-    _yearController.dispose();
-    _registrationController.dispose();
-    _capacityController.dispose();
-    _priceController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userProfile = authService.userProfile;
+    
+    if (userProfile == null) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: Column(
@@ -166,27 +178,52 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                     Center(
                       child: Stack(
                         children: [
-                          CircleAvatar(
-                            radius: 60,
-                            backgroundColor: AppColors.primary.withOpacity(0.2),
-                            child: Text(
-                              'A',
-                              style: TextStyle(
-                                fontSize: 48,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                          Builder(
+                            builder: (context) {
+                              final imageBytes = ImageUtils.decodeBase64Image(_profileImagePath);
+                              return CircleAvatar(
+                                radius: 60,
+                                backgroundColor: AppColors.primary.withOpacity(0.2),
+                                backgroundImage: imageBytes != null
+                                  ? MemoryImage(imageBytes)
+                                  : null,
+                                child: imageBytes == null
+                                  ? Text(
+                                      (userProfile['fullName'] ?? 'U')[0].toUpperCase(),
+                                      style: TextStyle(
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    )
+                                  : null,
+                              );
+                            },
+                          ),
+                          // Loading overlay when uploading
+                          if (_isUploadingImage)
+                            Positioned.fill(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withOpacity(0.5),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
                           Positioned(
                             bottom: 0,
                             right: 0,
                             child: GestureDetector(
-                              onTap: _changeProfileImage,
+                              onTap: _isUploadingImage ? null : _showImagePickerDialog,
                               child: Container(
                                 padding: EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.primary,
+                                  color: _isUploadingImage ? Colors.grey : AppColors.primary,
                                   shape: BoxShape.circle,
                                   border: Border.all(color: Colors.white, width: 3),
                                 ),
@@ -199,6 +236,23 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                             ),
                           ),
                         ],
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    Center(
+                      child: Text(
+                        _isUploadingImage 
+                          ? 'Uploading image...'
+                          : 'Tap to change profile picture',
+                        style: TextStyle(
+                          color: _isUploadingImage 
+                            ? AppColors.primary 
+                            : AppColors.textSecondary,
+                          fontSize: 14,
+                          fontWeight: _isUploadingImage 
+                            ? FontWeight.w600 
+                            : FontWeight.normal,
+                        ),
                       ),
                     ),
 
@@ -362,163 +416,12 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                       ),
                     ]),
 
-                    SizedBox(height: 24),
-
-                    // Vehicle Information
-                    _buildSectionTitle('Vehicle / Equipment Details'),
-                    SizedBox(height: 12),
-                    _buildFormCard([
-                      _buildDropdown(
-                        label: 'Vehicle Type',
-                        icon: Icons.agriculture,
-                        value: _selectedVehicleType,
-                        items: _vehicleTypes,
-                        onChanged: (value) => setState(() => _selectedVehicleType = value),
-                      ),
-                      SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _vehicleNameController,
-                        label: 'Vehicle Name',
-                        icon: Icons.directions_car,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Please enter vehicle name';
-                          }
-                          return null;
-                        },
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _makeController,
-                              label: 'Make',
-                              icon: Icons.precision_manufacturing,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _modelController,
-                              label: 'Model',
-                              icon: Icons.model_training,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _yearController,
-                              label: 'Year',
-                              icon: Icons.calendar_today,
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'Required';
-                                }
-                                final year = int.tryParse(value!);
-                                if (year == null || year < 1900 || year > DateTime.now().year + 1) {
-                                  return 'Invalid year';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          SizedBox(width: 16),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _registrationController,
-                              label: 'Registration No.',
-                              icon: Icons.assignment,
-                              validator: (value) {
-                                if (value?.isEmpty ?? true) {
-                                  return 'Required';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 16),
-                      _buildDropdown(
-                        label: 'Condition',
-                        icon: Icons.check_circle_outline,
-                        value: _selectedCondition,
-                        items: _conditions,
-                        onChanged: (value) => setState(() => _selectedCondition = value),
-                      ),
-                      SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _capacityController,
-                        label: 'Capacity / Load',
-                        icon: Icons.fitness_center,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Please enter capacity';
-                          }
-                          return null;
-                        },
-                      ),
-                      SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _priceController,
-                        label: 'Price per Hour (PKR)',
-                        icon: Icons.attach_money,
-                        keyboardType: TextInputType.number,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Please enter price';
-                          }
-                          final price = double.tryParse(value!);
-                          if (price == null || price <= 0) {
-                            return 'Please enter valid price';
-                          }
-                          return null;
-                        },
-                      ),
-                      SizedBox(height: 16),
-                      _buildSwitchTile(
-                        icon: Icons.security,
-                        title: 'Insurance',
-                        subtitle: 'Vehicle has valid insurance',
-                        value: _hasInsurance,
-                        onChanged: (value) => setState(() => _hasInsurance = value),
-                        activeColor: AppColors.primary,
-                      ),
-                      SizedBox(height: 12),
-                      _buildSwitchTile(
-                        icon: Icons.check_circle,
-                        title: 'Available for Booking',
-                        subtitle: 'Customers can book this vehicle',
-                        value: _isAvailable,
-                        onChanged: (value) => setState(() => _isAvailable = value),
-                        activeColor: Colors.green,
-                      ),
-                    ]),
-
                     SizedBox(height: 32),
 
                     // Additional Documents
                     _buildSectionTitle('Documents'),
                     SizedBox(height: 12),
-                    _buildDocumentsCard(),
+                    _buildDocumentsCard(userProfile),
 
                     SizedBox(height: 40),
 
@@ -739,7 +642,12 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     );
   }
 
-  Widget _buildDocumentsCard() {
+  Widget _buildDocumentsCard(Map<String, dynamic> userProfile) {
+    final hasProfileImage = _profileImagePath != null && _profileImagePath!.isNotEmpty;
+    final hasCnicFront = _cnicFrontImage != null && _cnicFrontImage!.isNotEmpty;
+    final hasCnicBack = _cnicBackImage != null && _cnicBackImage!.isNotEmpty;
+    final hasLicense = _licenseImage != null && _licenseImage!.isNotEmpty;
+    
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -756,28 +664,110 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
       child: Column(
         children: [
           _buildDocumentTile(
-            'Business Registration',
-            'registration_document.pdf',
-            true,
+            'Profile Picture',
+            hasProfileImage ? 'Uploaded' : 'Not uploaded',
+            hasProfileImage,
+            _profileImagePath,
+            'profile',
           ),
           SizedBox(height: 12),
           _buildDocumentTile(
-            'Tax Certificate',
-            'Not uploaded',
-            false,
+            'CNIC Front',
+            hasCnicFront ? 'Uploaded' : 'Not uploaded',
+            hasCnicFront,
+            _cnicFrontImage,
+            'cnicFront',
           ),
           SizedBox(height: 12),
           _buildDocumentTile(
-            'ID Card',
-            'cnic_copy.pdf',
-            true,
+            'CNIC Back',
+            hasCnicBack ? 'Uploaded' : 'Not uploaded',
+            hasCnicBack,
+            _cnicBackImage,
+            'cnicBack',
           ),
+          SizedBox(height: 12),
+          _buildDocumentTile(
+            'License Document',
+            hasLicense ? 'Uploaded' : 'Not uploaded',
+            hasLicense,
+            _licenseImage,
+            'license',
+          ),
+          if (userProfile['cnicNumber'] != null) ...[
+            SizedBox(height: 16),
+            Divider(),
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.credit_card, color: AppColors.primary, size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'CNIC Number',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        userProfile['cnicNumber'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (userProfile['licenseNumber'] != null) ...[
+            SizedBox(height: 16),
+            Row(
+              children: [
+                Icon(Icons.badge, color: AppColors.primary, size: 20),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'License Number',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        userProfile['licenseNumber'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildDocumentTile(String title, String subtitle, bool isUploaded) {
+  Widget _buildDocumentTile(String title, String subtitle, bool isUploaded, String? imageData, String documentType) {
+    final isCurrentlyUploading = _isUploadingDocument && _currentUploadingDocument == documentType;
+    
     return Container(
       padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -787,18 +777,56 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
       ),
       child: Row(
         children: [
-          Container(
-            padding: EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isUploaded
-                  ? Colors.green.withOpacity(0.1)
-                  : Colors.orange.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              isUploaded ? Icons.check_circle : Icons.upload_file,
-              color: isUploaded ? Colors.green : Colors.orange,
-              size: 24,
+          // Document icon or thumbnail
+          GestureDetector(
+            onTap: isUploaded ? () => _viewDocument(imageData, title) : null,
+            child: Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: isUploaded
+                    ? Colors.green.withOpacity(0.1)
+                    : Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: isCurrentlyUploading
+                ? Center(
+                    child: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor: AlwaysStoppedAnimation(AppColors.primary),
+                      ),
+                    ),
+                  )
+                : isUploaded && imageData != null
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Builder(
+                        builder: (context) {
+                          final imageBytes = ImageUtils.decodeBase64Image(imageData);
+                          if (imageBytes != null) {
+                            return Image.memory(
+                              imageBytes,
+                              width: 50,
+                              height: 50,
+                              fit: BoxFit.cover,
+                            );
+                          }
+                          return Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 24,
+                          );
+                        },
+                      ),
+                    )
+                  : Icon(
+                      isUploaded ? Icons.check_circle : Icons.upload_file,
+                      color: isUploaded ? Colors.green : Colors.orange,
+                      size: 24,
+                    ),
             ),
           ),
           SizedBox(width: 12),
@@ -816,10 +844,15 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  subtitle,
+                  isCurrentlyUploading ? 'Uploading...' : subtitle,
                   style: TextStyle(
                     fontSize: 12,
-                    color: isUploaded ? Colors.green : AppColors.textSecondary,
+                    color: isCurrentlyUploading 
+                      ? AppColors.primary
+                      : isUploaded 
+                        ? Colors.green 
+                        : AppColors.textSecondary,
+                    fontWeight: isCurrentlyUploading ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
               ],
@@ -827,17 +860,18 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
           ),
           IconButton(
             icon: Icon(
-              isUploaded ? Icons.visibility : Icons.upload,
+              isUploaded ? Icons.refresh : Icons.upload,
               color: AppColors.primary,
             ),
-            onPressed: () => _uploadDocument(title),
+            onPressed: isCurrentlyUploading ? null : () => _uploadDocument(documentType),
+            tooltip: isUploaded ? 'Change $title' : 'Upload $title',
           ),
         ],
       ),
     );
   }
 
-  void _changeProfileImage() {
+  void _showImagePickerDialog() {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -849,45 +883,493 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
               leading: Icon(Icons.camera_alt, color: AppColors.primary),
               title: Text('Take Photo'),
               onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Camera not implemented yet'),
-                    backgroundColor: AppColors.primary,
-                  ),
-                );
+                context.pop();
+                _pickImage('camera');
               },
             ),
             ListTile(
               leading: Icon(Icons.photo_library, color: AppColors.primary),
               title: Text('Choose from Gallery'),
               onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Gallery picker not implemented yet'),
-                    backgroundColor: AppColors.primary,
-                  ),
-                );
+                context.pop();
+                _pickImage('gallery');
               },
             ),
+            if (_profileImagePath != null && _profileImagePath!.isNotEmpty)
+              ListTile(
+                leading: Icon(Icons.delete, color: AppColors.error),
+                title: Text('Remove Photo'),
+                onTap: () {
+                  context.pop();
+                  _removeProfilePicture();
+                },
+              ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-        ],
       ),
     );
   }
 
-  void _uploadDocument(String documentType) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Upload $documentType'),
-        backgroundColor: AppColors.primary,
+  Future<void> _pickImage(String source) async {
+    try {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      XFile? pickedFile;
+
+      if (source == 'camera') {
+        if (kIsWeb) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('📷 Camera is not available on web. Please choose from gallery.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+          setState(() {
+            _isUploadingImage = false;
+          });
+          return;
+        }
+        
+        final ImagePicker picker = ImagePicker();
+        pickedFile = await picker.pickImage(
+          source: ImageSource.camera,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+      } else {
+        final ImagePicker picker = ImagePicker();
+        pickedFile = await picker.pickImage(
+          source: ImageSource.gallery,
+          maxWidth: 1024,
+          maxHeight: 1024,
+          imageQuality: 85,
+        );
+      }
+
+      if (pickedFile == null) {
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      final base64Image = await ImageUtils.convertImageToBase64(pickedFile);
+      final fileSizeKB = ImageUtils.getBase64FileSizeKB(base64Image);
+      
+      if (fileSizeKB > 2048) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Image is too large (${fileSizeKB.toStringAsFixed(0)} KB). Please choose an image smaller than 2 MB.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      final authService = context.read<AuthService>();
+      final uid = authService.userProfile?['uid'];
+
+      if (uid == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: User not authenticated'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      final success = await authService.updateProviderProfile(
+        uid: uid,
+        profileImage: base64Image,
+      );
+
+      if (success && mounted) {
+        setState(() {
+          _profileImagePath = base64Image;
+          _isUploadingImage = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Profile picture updated successfully! (${fileSizeKB.toStringAsFixed(0)} KB)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to update profile picture. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _removeProfilePicture() async {
+    try {
+      setState(() {
+        _isUploadingImage = true;
+      });
+
+      final authService = context.read<AuthService>();
+      final uid = authService.userProfile?['uid'];
+
+      if (uid == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: User not authenticated'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingImage = false;
+        });
+        return;
+      }
+
+      final success = await authService.updateProviderProfile(
+        uid: uid,
+        profileImage: '',
+      );
+
+      if (success && mounted) {
+        setState(() {
+          _profileImagePath = null;
+          _isUploadingImage = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Profile picture removed successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Failed to remove profile picture. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error removing profile picture: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        setState(() {
+          _isUploadingImage = false;
+        });
+      }
+    }
+  }
+
+  void _changeProfileImage() {
+    _showImagePickerDialog();
+  }
+
+  Future<void> _uploadDocument(String documentType) async {
+    try {
+      setState(() {
+        _isUploadingDocument = true;
+        _currentUploadingDocument = documentType;
+      });
+
+      // Pick image from gallery (camera not available on web)
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile == null) {
+        setState(() {
+          _isUploadingDocument = false;
+          _currentUploadingDocument = null;
+        });
+        return;
+      }
+
+      // Convert image to Base64
+      final base64Image = await ImageUtils.convertImageToBase64(pickedFile);
+      
+      // Get file size for validation
+      final fileSizeKB = ImageUtils.getBase64FileSizeKB(base64Image);
+      
+      // Check file size (max 2MB)
+      if (fileSizeKB > 2048) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Image is too large (${fileSizeKB.toStringAsFixed(0)} KB). Please choose an image smaller than 2 MB.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingDocument = false;
+          _currentUploadingDocument = null;
+        });
+        return;
+      }
+
+      // Get auth service and user ID
+      final authService = context.read<AuthService>();
+      final uid = authService.userProfile?['uid'];
+
+      if (uid == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('❌ Error: User not authenticated'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+        setState(() {
+          _isUploadingDocument = false;
+          _currentUploadingDocument = null;
+        });
+        return;
+      }
+
+      // Prepare update data based on document type
+      String? profileImage;
+      String? cnicFrontImage;
+      String? cnicBackImage;
+      String? licenseImage;
+      String documentName;
+
+      switch (documentType) {
+        case 'profile':
+          profileImage = base64Image;
+          documentName = 'Profile Picture';
+          break;
+        case 'cnicFront':
+          cnicFrontImage = base64Image;
+          documentName = 'CNIC Front';
+          break;
+        case 'cnicBack':
+          cnicBackImage = base64Image;
+          documentName = 'CNIC Back';
+          break;
+        case 'license':
+          licenseImage = base64Image;
+          documentName = 'License Document';
+          break;
+        default:
+          documentName = 'Document';
+      }
+
+      // Update local state immediately (optimistic update)
+      if (mounted) {
+        setState(() {
+          switch (documentType) {
+            case 'profile':
+              _profileImagePath = base64Image;
+              break;
+            case 'cnicFront':
+              _cnicFrontImage = base64Image;
+              break;
+            case 'cnicBack':
+              _cnicBackImage = base64Image;
+              break;
+            case 'license':
+              _licenseImage = base64Image;
+              break;
+          }
+        });
+      }
+
+      // Update document via GraphQL
+      final success = await authService.updateProviderProfile(
+        uid: uid,
+        profileImage: profileImage,
+        cnicFrontImage: cnicFrontImage,
+        cnicBackImage: cnicBackImage,
+        licenseImage: licenseImage,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isUploadingDocument = false;
+          _currentUploadingDocument = null;
+        });
+      }
+
+      if (success && mounted) {
+        // Reload user profile to ensure consistency with backend
+        await authService.reloadUserProfile();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ $documentName uploaded successfully! (${fileSizeKB.toStringAsFixed(0)} KB)'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (mounted) {
+        // Even if mutation timed out, the backend might have saved it
+        // So we reload the profile to check
+        await authService.reloadUserProfile();
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ $documentName uploaded but verification pending. Reloading...'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error uploading document: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        setState(() {
+          _isUploadingDocument = false;
+          _currentUploadingDocument = null;
+        });
+      }
+    }
+  }
+
+  void _viewDocument(String? imageData, String title) {
+    if (imageData == null || imageData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ No document to view'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    final imageBytes = ImageUtils.decodeBase64Image(imageData);
+    
+    if (imageBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Failed to load document'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Show full-screen image viewer
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.black,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppBar(
+              title: Text(title),
+              backgroundColor: AppColors.primary,
+              leading: IconButton(
+                icon: Icon(Icons.close),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ),
+            Expanded(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: Center(
+                  child: Image.memory(
+                    imageBytes,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.all(16),
+              color: Colors.black87,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _uploadDocument(
+                        title.contains('Profile') ? 'profile' :
+                        title.contains('CNIC Front') ? 'cnicFront' :
+                        title.contains('CNIC Back') ? 'cnicBack' : 'license'
+                      );
+                    },
+                    icon: Icon(Icons.refresh),
+                    label: Text('Replace'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(Icons.close, color: Colors.white),
+                    label: Text('Close', style: TextStyle(color: Colors.white)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -902,24 +1384,94 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     });
 
     try {
-      // Mock save operation - replace with actual API call
-      await Future.delayed(Duration(seconds: 2));
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final uid = authService.userProfile?['uid'];
+      
+      if (uid == null) {
+        throw Exception('User not logged in');
+      }
+
+      print('\n🔄 UPDATING PROVIDER PROFILE');
+      print('   UID: $uid');
+      print('   Business Name: ${_businessNameController.text}');
+      print('   Service Type: $_selectedServiceType');
+      print('   City: ${_cityController.text}');
+      print('   Province: $_selectedProvince');
+
+      // Call the updateProviderProfile method with all fields
+      final success = await authService.updateProviderProfile(
+        uid: uid,
+        businessName: _businessNameController.text.trim().isEmpty 
+            ? null 
+            : _businessNameController.text.trim(),
+        serviceType: _selectedServiceType,
+        cnicNumber: _cnicController.text.trim().isEmpty 
+            ? null 
+            : _cnicController.text.trim(),
+        address: _addressController.text.trim().isEmpty 
+            ? null 
+            : _addressController.text.trim(),
+        city: _cityController.text.trim().isEmpty 
+            ? null 
+            : _cityController.text.trim(),
+        province: _selectedProvince,
+        yearsExperience: _experienceController.text.trim().isEmpty 
+            ? null 
+            : int.tryParse(_experienceController.text.trim()),
+        description: _descriptionController.text.trim().isEmpty 
+            ? null 
+            : _descriptionController.text.trim(),
+      );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Profile updated successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-        context.pop();
+        if (success) {
+          print('✅ Profile updated successfully');
+          
+          // Reload the user profile from backend to get latest data
+          await authService.loadUserProfile();
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Expanded(child: Text('Profile updated successfully!')),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          );
+          // Wait a moment then go back
+          await Future.delayed(Duration(milliseconds: 500));
+          if (mounted) {
+            context.pop();
+          }
+        } else {
+          throw Exception(authService.errorMessage ?? 'Failed to update profile');
+        }
       }
     } catch (e) {
+      print('❌ Profile update error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to update profile'),
-            backgroundColor: AppColors.error,
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 12),
+                Expanded(child: Text('Failed to update profile: ${e.toString()}')),
+              ],
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }

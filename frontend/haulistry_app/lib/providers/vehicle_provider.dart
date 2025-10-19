@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import '../models/vehicle_model.dart';
+import '../services/graphql_service.dart';
+import '../services/auth_service.dart';
 
 class VehicleProvider extends ChangeNotifier {
+  final GraphQLService _graphqlService = GraphQLService();
+  final AuthService _authService = AuthService();
+  
   List<Vehicle> _vehicles = [];
   bool _isLoading = false;
   String? _error;
@@ -14,111 +17,184 @@ class VehicleProvider extends ChangeNotifier {
   String? get error => _error;
   bool get hasVehicles => _vehicles.isNotEmpty;
 
-  // Initialize and load vehicles from storage
+  String? get _providerUid => _authService.userProfile?['uid'];
+
+  // Load vehicles from GraphQL API
   Future<void> loadVehicles() async {
+    if (_providerUid == null) {
+      _error = 'User not logged in';
+      notifyListeners();
+      return;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? vehiclesJson = prefs.getString('provider_vehicles');
+      print('🔄 Loading vehicles for provider: $_providerUid');
+      final vehiclesData = await _graphqlService.getProviderVehicles(_providerUid!);
       
-      if (vehiclesJson != null) {
-        final List<dynamic> decoded = json.decode(vehiclesJson);
-        _vehicles = decoded.map((v) => Vehicle.fromJson(v)).toList();
-      }
+      _vehicles = vehiclesData.map((data) => Vehicle.fromGraphQL(data)).toList();
+      print('✅ Loaded ${_vehicles.length} vehicles');
     } catch (e) {
       _error = 'Failed to load vehicles: $e';
+      print('❌ Error loading vehicles: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  // Save vehicles to storage
-  Future<void> _saveVehicles() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final String encoded = json.encode(_vehicles.map((v) => v.toJson()).toList());
-      await prefs.setString('provider_vehicles', encoded);
-    } catch (e) {
-      _error = 'Failed to save vehicles: $e';
-      notifyListeners();
-    }
-  }
-
-  // Add new vehicle
+  // Add new vehicle via GraphQL
   Future<bool> addVehicle(Vehicle vehicle) async {
-    try {
-      _vehicles.add(vehicle);
-      await _saveVehicles();
+    if (_providerUid == null) {
+      _error = 'User not logged in';
       notifyListeners();
-      return true;
+      return false;
+    }
+
+    try {
+      print('🚗 Adding vehicle: ${vehicle.vehicleName}');
+      
+      final response = await _graphqlService.addVehicle(
+        providerUid: _providerUid!,
+        name: vehicle.vehicleName,
+        vehicleType: vehicle.vehicleType,
+        make: vehicle.make,
+        model: vehicle.model,
+        year: vehicle.year,
+        registrationNumber: vehicle.registrationNumber,
+        capacity: vehicle.capacity,
+        condition: vehicle.condition,
+        vehicleImage: vehicle.vehicleImage,
+        hasInsurance: vehicle.hasInsurance,
+        insuranceExpiry: vehicle.insuranceExpiry,
+        isAvailable: vehicle.isAvailable,
+        city: vehicle.city,
+        province: vehicle.province,
+        pricePerHour: vehicle.pricePerHour,
+        pricePerDay: vehicle.pricePerDay,
+        description: vehicle.description,
+      );
+
+      if (response['success'] == true) {
+        // Reload vehicles to get updated list
+        await loadVehicles();
+        print('✅ Vehicle added successfully');
+        return true;
+      }
+      
+      _error = response['message'] ?? 'Failed to add vehicle';
+      notifyListeners();
+      return false;
     } catch (e) {
       _error = 'Failed to add vehicle: $e';
+      print('❌ Error adding vehicle: $e');
       notifyListeners();
       return false;
     }
   }
 
-  // Update existing vehicle
-  Future<bool> updateVehicle(String id, Vehicle updatedVehicle) async {
+  // Update existing vehicle via GraphQL
+  Future<bool> updateVehicle(String vehicleId, Vehicle updatedVehicle) async {
     try {
-      final index = _vehicles.indexWhere((v) => v.id == id);
-      if (index != -1) {
-        _vehicles[index] = updatedVehicle.copyWith(updatedAt: DateTime.now());
-        await _saveVehicles();
-        notifyListeners();
+      print('🔧 Updating vehicle: $vehicleId');
+      
+      final response = await _graphqlService.updateVehicle(
+        vehicleId: vehicleId,
+        name: updatedVehicle.vehicleName,
+        vehicleType: updatedVehicle.vehicleType,
+        make: updatedVehicle.make,
+        model: updatedVehicle.model,
+        year: updatedVehicle.year,
+        registrationNumber: updatedVehicle.registrationNumber,
+        capacity: updatedVehicle.capacity,
+        condition: updatedVehicle.condition,
+        vehicleImage: updatedVehicle.vehicleImage,
+        hasInsurance: updatedVehicle.hasInsurance,
+        insuranceExpiry: updatedVehicle.insuranceExpiry,
+        isAvailable: updatedVehicle.isAvailable,
+        city: updatedVehicle.city,
+        province: updatedVehicle.province,
+        pricePerHour: updatedVehicle.pricePerHour,
+        pricePerDay: updatedVehicle.pricePerDay,
+        description: updatedVehicle.description,
+      );
+
+      if (response['success'] == true) {
+        await loadVehicles();
+        print('✅ Vehicle updated successfully');
         return true;
       }
+      
+      _error = response['message'] ?? 'Failed to update vehicle';
+      notifyListeners();
       return false;
     } catch (e) {
       _error = 'Failed to update vehicle: $e';
+      print('❌ Error updating vehicle: $e');
       notifyListeners();
       return false;
     }
   }
 
-  // Delete vehicle
-  Future<bool> deleteVehicle(String id) async {
+  // Delete vehicle via GraphQL (CASCADE - deletes related services)
+  Future<bool> deleteVehicle(String vehicleId) async {
     try {
-      _vehicles.removeWhere((v) => v.id == id);
-      await _saveVehicles();
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _error = 'Failed to delete vehicle: $e';
-      notifyListeners();
-      return false;
-    }
-  }
+      print('🗑️  Deleting vehicle: $vehicleId (CASCADE - will delete services)');
+      
+      final response = await _graphqlService.deleteVehicle(vehicleId);
 
-  // Toggle vehicle availability
-  Future<bool> toggleAvailability(String id) async {
-    try {
-      final index = _vehicles.indexWhere((v) => v.id == id);
-      if (index != -1) {
-        _vehicles[index] = _vehicles[index].copyWith(
-          isAvailable: !_vehicles[index].isAvailable,
-          updatedAt: DateTime.now(),
-        );
-        await _saveVehicles();
-        notifyListeners();
+      if (response['success'] == true) {
+        await loadVehicles();
+        print('✅ Vehicle and related services deleted successfully');
         return true;
       }
+      
+      _error = response['message'] ?? 'Failed to delete vehicle';
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _error = 'Failed to delete vehicle: $e';
+      print('❌ Error deleting vehicle: $e');
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Toggle vehicle availability via GraphQL
+  Future<bool> toggleAvailability(String vehicleId) async {
+    try {
+      final vehicle = getVehicleById(vehicleId);
+      if (vehicle == null) return false;
+
+      print('🔄 Toggling availability for vehicle: $vehicleId');
+      
+      final response = await _graphqlService.updateVehicle(
+        vehicleId: vehicleId,
+        isAvailable: !vehicle.isAvailable,
+      );
+
+      if (response['success'] == true) {
+        await loadVehicles();
+        print('✅ Availability toggled successfully');
+        return true;
+      }
+      
       return false;
     } catch (e) {
       _error = 'Failed to toggle availability: $e';
+      print('❌ Error toggling availability: $e');
       notifyListeners();
       return false;
     }
   }
 
   // Get vehicle by ID
-  Vehicle? getVehicleById(String id) {
+  Vehicle? getVehicleById(String vehicleId) {
     try {
-      return _vehicles.firstWhere((v) => v.id == id);
+      return _vehicles.firstWhere((v) => v.vehicleId == vehicleId);
     } catch (e) {
       return null;
     }
@@ -129,16 +205,10 @@ class VehicleProvider extends ChangeNotifier {
     return _vehicles.where((v) => v.vehicleType == type).toList();
   }
 
-  // Clear all vehicles (for testing/logout)
-  Future<void> clearVehicles() async {
+  // Clear all vehicles (for logout)
+  void clearVehicles() {
     _vehicles.clear();
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('provider_vehicles');
+    _error = null;
     notifyListeners();
-  }
-
-  // Generate unique ID
-  String _generateId() {
-    return 'VEH${DateTime.now().millisecondsSinceEpoch}';
   }
 }

@@ -3,7 +3,7 @@ GraphQL Queries for Haulistry
 """
 import strawberry
 from typing import Optional, List, Union
-from .types import User, Seeker, Provider
+from .types import User, Seeker, Provider, Vehicle, Service
 from services.user_service import UserService
 from strawberry.types import Info
 
@@ -82,7 +82,7 @@ class Query:
         """
         try:
             user_service = UserService()
-            user_data = user_service.get_user_by_uid(uid)
+            user_data = await user_service.get_user_by_uid(uid)
             
             if not user_data:
                 return None
@@ -104,9 +104,19 @@ class Query:
                     province=user_data.get('province'),
                     years_experience=user_data.get('years_experience'),
                     description=user_data.get('description'),
+                    # Document images
+                    profile_image=user_data.get('profile_image'),
+                    cnic_front_image=user_data.get('cnic_front_image'),
+                    cnic_back_image=user_data.get('cnic_back_image'),
+                    license_image=user_data.get('license_image'),
+                    license_number=user_data.get('license_number'),
+                    # Verification
+                    is_verified=user_data.get('is_verified', False),
+                    documents_uploaded=user_data.get('documents_uploaded', False),
+                    verification_status=user_data.get('verification_status', 'pending'),
+                    # Stats
                     rating=user_data.get('rating'),
                     total_bookings=user_data.get('total_bookings', 0),
-                    is_verified=user_data.get('is_verified', False),
                     created_at=user_data['created_at'],
                     updated_at=user_data['updated_at']
                 )
@@ -265,4 +275,169 @@ class Query:
         except Exception as e:
             print(f"❌ Error finding similar seekers: {str(e)}\n")
             raise Exception(f"Failed to find similar seekers: {str(e)}")
+    
+    # ==================== VEHICLE QUERIES ====================
+    
+    @strawberry.field
+    async def provider_vehicles(self, provider_uid: str) -> List['Vehicle']:
+        """
+        Get all vehicles owned by a specific provider
+        
+        Args:
+            provider_uid: The provider's UID
+            
+        Returns:
+            List of Vehicle objects
+        """
+        print(f"\n{'='*60}")
+        print(f"🚗 PROVIDER_VEHICLES QUERY CALLED")
+        print(f"   Provider UID: {provider_uid}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Vehicle
+            
+            user_repo = UserRepository()
+            vehicles = user_repo.get_provider_vehicles(provider_uid)
+            
+            print(f"✅ Found {len(vehicles)} vehicles\n")
+            
+            return [Vehicle(**vehicle) for vehicle in vehicles]
+            
+        except Exception as e:
+            print(f"❌ Error fetching vehicles: {str(e)}\n")
+            raise Exception(f"Failed to fetch vehicles: {str(e)}")
+    
+    @strawberry.field
+    async def vehicle_by_id(self, vehicle_id: str) -> Optional['Vehicle']:
+        """
+        Get a specific vehicle by ID
+        
+        Args:
+            vehicle_id: The vehicle's ID
+            
+        Returns:
+            Vehicle object or None if not found
+        """
+        print(f"\n{'='*60}")
+        print(f"🔍 VEHICLE_BY_ID QUERY CALLED")
+        print(f"   Vehicle ID: {vehicle_id}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Vehicle
+            
+            user_repo = UserRepository()
+            vehicle = user_repo.get_vehicle_by_id(vehicle_id)
+            
+            if vehicle:
+                print(f"✅ Vehicle found: {vehicle['name']}\n")
+                return Vehicle(**vehicle)
+            
+            print(f"⚠️  Vehicle not found\n")
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error fetching vehicle: {str(e)}\n")
+            raise Exception(f"Failed to fetch vehicle: {str(e)}")
+    
+    # ==================== SERVICE QUERIES ====================
+    
+    @strawberry.field
+    async def vehicle_services(self, vehicle_id: str) -> List['Service']:
+        """
+        Get all services provided by a specific vehicle
+        
+        Args:
+            vehicle_id: The vehicle's ID
+            
+        Returns:
+            List of Service objects
+        """
+        print(f"\n{'='*60}")
+        print(f"🛠️  VEHICLE_SERVICES QUERY CALLED")
+        print(f"   Vehicle ID: {vehicle_id}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Service
+            
+            user_repo = UserRepository()
+            services = user_repo.get_vehicle_services(vehicle_id)
+            
+            print(f"✅ Found {len(services)} services\n")
+            
+            return [Service(**service) for service in services]
+            
+        except Exception as e:
+            print(f"❌ Error fetching services: {str(e)}\n")
+            raise Exception(f"Failed to fetch services: {str(e)}")
+    
+    @strawberry.field
+    async def provider_services(self, provider_uid: str) -> List['Service']:
+        """
+        Get all services offered by a provider (across all vehicles)
+        
+        Args:
+            provider_uid: The provider's UID
+            
+        Returns:
+            List of Service objects
+        """
+        print(f"\n{'='*60}")
+        print(f"🔧 PROVIDER_SERVICES QUERY CALLED")
+        print(f"   Provider UID: {provider_uid}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Service
+            
+            user_repo = UserRepository()
+            services = user_repo.get_provider_services(provider_uid)
+            
+            print(f"✅ Found {len(services)} services\n")
+            
+            return [Service(**service) for service in services]
+            
+        except Exception as e:
+            print(f"❌ Error fetching services: {str(e)}\n")
+            raise Exception(f"Failed to fetch services: {str(e)}")
+    
+    @strawberry.field
+    async def service_by_id(self, service_id: str) -> Optional['Service']:
+        """
+        Get a specific service by ID
+        
+        Args:
+            service_id: The service's ID
+            
+        Returns:
+            Service object or None if not found
+        """
+        print(f"\n{'='*60}")
+        print(f"🔍 SERVICE_BY_ID QUERY CALLED")
+        print(f"   Service ID: {service_id}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Service
+            
+            user_repo = UserRepository()
+            service = user_repo.get_service_by_id(service_id)
+            
+            if service:
+                print(f"✅ Service found: {service['service_name']}\n")
+                return Service(**service)
+            
+            print(f"⚠️  Service not found\n")
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error fetching service: {str(e)}\n")
+            raise Exception(f"Failed to fetch service: {str(e)}")
 

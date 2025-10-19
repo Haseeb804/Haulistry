@@ -8,6 +8,7 @@ import 'providers/auth_provider.dart';
 import 'providers/booking_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/vehicle_provider.dart';
+import 'providers/service_provider.dart';
 import 'providers/seeker_preferences_provider.dart';
 import 'routes/app_router.dart';
 import 'utils/app_colors.dart';
@@ -57,6 +58,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => BookingProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => VehicleProvider()),
+        ChangeNotifierProvider(create: (_) => ServiceProvider()),
         ChangeNotifierProvider(create: (_) => SeekerPreferencesProvider()),
       ],
       child: Consumer<ThemeProvider>(

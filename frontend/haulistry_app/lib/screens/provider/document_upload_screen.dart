@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_utils.dart';
+import '../../services/graphql_service.dart';
+import '../../services/auth_service.dart';
 
 class DocumentUploadScreen extends StatefulWidget {
   const DocumentUploadScreen({super.key});
@@ -33,29 +37,11 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final canGoBack = ModalRoute.of(context)?.canPop ?? false;
-    
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text('Document Verification'),
-        leading: canGoBack
-            ? IconButton(
-                icon: Icon(Icons.arrow_back_ios),
-                onPressed: () => _showSkipConfirmation(context),
-              )
-            : null,
-        actions: [
-          if (canGoBack)
-            TextButton.icon(
-              onPressed: () => _showSkipConfirmation(context),
-              icon: Icon(Icons.skip_next, color: Colors.white),
-              label: Text(
-                'Skip',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-              ),
-            ),
-        ],
+        automaticallyImplyLeading: false,  // Remove back button
       ),
       body: Column(
         children: [
@@ -768,102 +754,162 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       return;
     }
 
+    // Ensure all images are uploaded
+    if (_profileImage == null || _cnicFrontImage == null || 
+        _cnicBackImage == null || _licenseImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please upload all required documents')),
+      );
+      return;
+    }
+
     // Show loading
     setState(() => _isUploading = true);
 
-    // Simulate upload
-    await Future.delayed(Duration(seconds: 2));
+    try {
+      // Convert images to Base64
+      print('📸 Converting images to Base64...');
+      final profileBase64 = await ImageUtils.convertImageToBase64(_profileImage!);
+      final cnicFrontBase64 = await ImageUtils.convertImageToBase64(_cnicFrontImage!);
+      final cnicBackBase64 = await ImageUtils.convertImageToBase64(_cnicBackImage!);
+      final licenseBase64 = await ImageUtils.convertImageToBase64(_licenseImage!);
+      
+      print('✅ Images converted. Sizes:');
+      print('   Profile: ${ImageUtils.getBase64FileSizeKB(profileBase64).toStringAsFixed(2)} KB');
+      print('   CNIC Front: ${ImageUtils.getBase64FileSizeKB(cnicFrontBase64).toStringAsFixed(2)} KB');
+      print('   CNIC Back: ${ImageUtils.getBase64FileSizeKB(cnicBackBase64).toStringAsFixed(2)} KB');
+      print('   License: ${ImageUtils.getBase64FileSizeKB(licenseBase64).toStringAsFixed(2)} KB');
+      
+      // Get AuthService instance from Provider
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final uid = authService.userProfile?['uid'];
+      
+      if (uid == null) {
+        throw Exception('User not logged in');
+      }
+      
+      // Upload documents via AuthService (handles profile update automatically)
+      print('📤 Uploading documents to server...');
+      final success = await authService.updateProviderProfile(
+        uid: uid,
+        profileImage: profileBase64,
+        cnicFrontImage: cnicFrontBase64,
+        cnicBackImage: cnicBackBase64,
+        licenseImage: licenseBase64,
+        cnicNumber: _cnicController.text,
+        licenseNumber: _licenseController.text,
+      );
 
-    setState(() => _isUploading = false);
+      if (!success) {
+        throw Exception(authService.errorMessage ?? 'Failed to upload documents');
+      }
 
-    // Show success dialog
-    if (mounted) {
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Column(
-            children: [
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  shape: BoxShape.circle,
+      setState(() => _isUploading = false);
+
+      // Show success dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Column(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.check_circle, color: Colors.green, size: 60),
                 ),
-                child: Icon(Icons.check_circle, color: Colors.green, size: 60),
-              ),
-              SizedBox(height: 16),
-              Text('Documents Uploaded!'),
-            ],
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Your documents have been submitted successfully.',
-                textAlign: TextAlign.center,
-              ),
-              SizedBox(height: 16),
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(10),
+                SizedBox(height: 16),
+                Text('Documents Uploaded!'),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Your documents have been submitted successfully.',
+                  textAlign: TextAlign.center,
                 ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.credit_card, size: 16, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'CNIC: ${_cnicController.text}',
-                            style: TextStyle(fontSize: 12),
+                SizedBox(height: 16),
+                Container(
+                  padding: EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(Icons.credit_card, size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'CNIC: ${_cnicController.text}',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.badge, size: 16, color: Colors.blue),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'License: ${_licenseController.text}',
-                            style: TextStyle(fontSize: 12),
+                        ],
+                      ),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.badge, size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'License: ${_licenseController.text}',
+                              style: TextStyle(fontSize: 12),
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              SizedBox(height: 16),
-              Text(
-                'We\'ll verify them within 24-48 hours.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-            ],
+                SizedBox(height: 16),
+                Text(
+                  'We\'ll verify them within 24-48 hours.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ],
           ),
           actions: [
             ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
-                // Show business setup dialog after document upload
-                _showBusinessSetupDialog(context);
+                // Navigate directly to dashboard
+                context.go('/provider/dashboard');
               },
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 45),
+                backgroundColor: AppColors.primary,
               ),
-              child: Text('Continue'),
+              child: Text('Go to Dashboard', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
       );
+    }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      
+      print('❌ Document upload failed: $e');
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to upload documents: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 
@@ -1001,14 +1047,14 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.of(context).pop();
-              context.go('/provider/details');
+              context.go('/provider/dashboard');
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child: Text('Start Setup', style: TextStyle(color: Colors.white)),
+            child: Text('Go to Dashboard', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),

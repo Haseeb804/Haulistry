@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -264,22 +265,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         // Profile Picture
                         Stack(
                           children: [
-                            CircleAvatar(
-                              radius: 60,
-                              backgroundColor: Colors.white.withOpacity(0.2),
-                              child: _userData!['profileImage'] != null
-                                  ? ClipOval(
-                                      child: Image.network(
-                                        _userData!['profileImage'],
-                                        width: 120,
-                                        height: 120,
-                                        fit: BoxFit.cover,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return _buildInitialsAvatar();
-                                        },
-                                      ),
-                                    )
-                                  : _buildInitialsAvatar(),
+                            Builder(
+                              builder: (context) {
+                                final imageBytes = ImageUtils.decodeBase64Image(_userData!['profileImage']);
+                                return CircleAvatar(
+                                  radius: 60,
+                                  backgroundColor: Colors.white.withOpacity(0.2),
+                                  backgroundImage: imageBytes != null
+                                    ? MemoryImage(imageBytes)
+                                    : null,
+                                  child: imageBytes == null
+                                    ? _buildInitialsAvatar()
+                                    : null,
+                                );
+                              },
                             ),
                             Positioned(
                               bottom: 0,

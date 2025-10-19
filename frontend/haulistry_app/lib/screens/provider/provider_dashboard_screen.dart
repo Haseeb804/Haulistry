@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/image_utils.dart';
+import '../../services/auth_service.dart';
+import '../../providers/vehicle_provider.dart';
+import '../../providers/service_provider.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -11,89 +16,52 @@ class ProviderDashboardScreen extends StatefulWidget {
 
 class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   int _selectedIndex = 0;
+  bool _isLoading = true;
 
-  // Mock provider data
-  final Map<String, dynamic> _providerData = {
-    'name': 'John Doe',
-    'businessName': 'John Doe Farming Services',
-    'rating': 4.8,
-    'totalReviews': 124,
-    'completedBookings': 87,
-    'activeServices': 3,
-    'totalEarnings': 450000,
-    'thisMonthEarnings': 85000,
-    'pendingRequests': 5,
-    'responseRate': 98,
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
 
-  final List<Map<String, dynamic>> _recentBookings = [
-    {
-      'id': 'BK001',
-      'service': 'Harvester Service',
-      'client': 'Muhammad Ahmad',
-      'date': 'Oct 20, 2025',
-      'time': '08:00 AM',
-      'amount': 10000,
-      'status': 'confirmed',
-      'location': 'Lahore',
-    },
-    {
-      'id': 'BK002',
-      'service': 'Harvester Service',
-      'client': 'Ali Hassan',
-      'date': 'Oct 22, 2025',
-      'time': '09:00 AM',
-      'amount': 12000,
-      'status': 'pending',
-      'location': 'Faisalabad',
-    },
-    {
-      'id': 'BK003',
-      'service': 'Harvester Service',
-      'client': 'Sara Khan',
-      'date': 'Oct 18, 2025',
-      'time': '07:00 AM',
-      'amount': 9500,
-      'status': 'completed',
-      'location': 'Multan',
-    },
-  ];
-
-  final List<Map<String, dynamic>> _myServices = [
-    {
-      'id': '1',
-      'name': 'Premium Harvester Service',
-      'price': 2500,
-      'status': 'active',
-      'bookings': 45,
-      'rating': 4.9,
-      'icon': Icons.agriculture_rounded,
-      'color': Colors.orange,
-    },
-    {
-      'id': '2',
-      'name': 'Standard Harvester',
-      'price': 2000,
-      'status': 'active',
-      'bookings': 32,
-      'rating': 4.7,
-      'icon': Icons.agriculture_rounded,
-      'color': Colors.green,
-    },
-    {
-      'id': '3',
-      'name': 'Mini Harvester',
-      'price': 1500,
-      'status': 'inactive',
-      'bookings': 10,
-      'rating': 4.5,
-      'icon': Icons.agriculture_rounded,
-      'color': Colors.grey,
-    },
-  ];
+  Future<void> _loadData() async {
+    final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
+    final serviceProvider = Provider.of<ServiceProvider>(context, listen: false);
+    
+    await Future.wait([
+      vehicleProvider.loadVehicles(),
+      serviceProvider.loadServices(),
+    ]);
+    
+    setState(() => _isLoading = false);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userProfile = authService.userProfile;
+    
+    // 🐛 DEBUG: Print profile image data (only once when not loading)
+    if (!_isLoading && userProfile != null) {
+      print('═══════════════════════════════════');
+      print('📸 DASHBOARD PROFILE PICTURE DEBUG');
+      print('═══════════════════════════════════');
+      print('User: ${userProfile['fullName']}');
+      print('Has profileImage: ${userProfile.containsKey('profileImage')}');
+      print('ProfileImage is null: ${userProfile['profileImage'] == null}');
+      print('ProfileImage is empty: ${userProfile['profileImage'] == ''}');
+      if (userProfile['profileImage'] != null && userProfile['profileImage'] != '') {
+        print('ProfileImage length: ${(userProfile['profileImage'] as String).length}');
+      }
+      print('═══════════════════════════════════\n');
+    }
+    
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
       body: Column(
@@ -119,17 +87,27 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     padding: EdgeInsets.all(16),
                     child: Row(
                       children: [
-                        CircleAvatar(
-                          radius: 24,
-                          backgroundColor: Colors.white.withOpacity(0.2),
-                          child: Text(
-                            _providerData['name'][0],
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                        Builder(
+                          builder: (context) {
+                            final imageBytes = ImageUtils.decodeBase64Image(userProfile?['profileImage']);
+                            return CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundImage: imageBytes != null 
+                                ? MemoryImage(imageBytes)
+                                : null,
+                              child: imageBytes == null
+                                ? Text(
+                                    (userProfile?['fullName'] ?? 'U')[0].toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : null,
+                            );
+                          },
                         ),
                         SizedBox(width: 12),
                         Expanded(
@@ -144,7 +122,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                                 ),
                               ),
                               Text(
-                                _providerData['name'],
+                                userProfile?['fullName'] ?? 'Provider',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 18,
@@ -174,7 +152,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Total Earnings',
-                            'Rs ${(_providerData['totalEarnings'] / 1000).toStringAsFixed(0)}k',
+                            'Rs 0',
                             Icons.account_balance_wallet,
                             Colors.green,
                           ),
@@ -183,7 +161,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'This Month',
-                            'Rs ${(_providerData['thisMonthEarnings'] / 1000).toStringAsFixed(0)}k',
+                            'Rs 0',
                             Icons.trending_up,
                             Colors.blue,
                           ),
@@ -192,7 +170,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         Expanded(
                           child: _buildStatCard(
                             'Pending',
-                            '${_providerData['pendingRequests']}',
+                            '0',
                             Icons.pending,
                             Colors.orange,
                           ),
@@ -414,6 +392,9 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   }
 
   Widget _buildPerformanceOverview() {
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final userProfile = authService.userProfile;
+    
     return Container(
       padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -440,34 +421,34 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           SizedBox(height: 20),
           _buildPerformanceItem(
             'Overall Rating',
-            '${_providerData['rating']}',
+            '${userProfile?['rating']?.toStringAsFixed(1) ?? '0.0'}',
             Icons.star,
             Colors.amber,
-            '${_providerData['totalReviews']} reviews',
+            '0 reviews',
           ),
           SizedBox(height: 16),
           _buildPerformanceItem(
             'Completed Bookings',
-            '${_providerData['completedBookings']}',
+            '${userProfile?['totalBookings'] ?? 0}',
             Icons.check_circle,
             Colors.green,
             'All time',
           ),
           SizedBox(height: 16),
           _buildPerformanceItem(
-            'Active Services',
-            '${_providerData['activeServices']}',
-            Icons.business_center,
-            Colors.blue,
-            'Currently listed',
+            'Verification Status',
+            userProfile?['documentsUploaded'] == true ? 'Pending' : 'Not Verified',
+            Icons.verified_user,
+            userProfile?['documentsUploaded'] == true ? Colors.orange : Colors.grey,
+            userProfile?['documentsUploaded'] == true ? 'Under review' : 'Upload documents',
           ),
           SizedBox(height: 16),
           _buildPerformanceItem(
-            'Response Rate',
-            '${_providerData['responseRate']}%',
-            Icons.reply,
-            Colors.purple,
-            'Last 30 days',
+            'Account Status',
+            userProfile?['isVerified'] == true ? 'Verified' : 'Unverified',
+            Icons.check_circle_outline,
+            userProfile?['isVerified'] == true ? Colors.green : Colors.grey,
+            'Provider account',
           ),
         ],
       ),
@@ -540,8 +521,51 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   }
 
   Widget _buildMyServices() {
+    final serviceProvider = Provider.of<ServiceProvider>(context);
+    final services = serviceProvider.services;
+    
+    if (services.isEmpty) {
+      return Container(
+        padding: EdgeInsets.all(32),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.business_center_outlined, size: 64, color: Colors.grey.shade300),
+            SizedBox(height: 16),
+            Text(
+              'No Services Added Yet',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey.shade600,
+              ),
+            ),
+            SizedBox(height: 8),
+            Text(
+              'Add your first service to start receiving bookings',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey.shade500),
+            ),
+            SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () => context.push('/provider/services/add'),
+              icon: Icon(Icons.add),
+              label: Text('Add Service'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    
     return Column(
-      children: _myServices.map((service) {
+      children: services.take(3).map((service) {
         return Container(
           margin: EdgeInsets.only(bottom: 12),
           padding: EdgeInsets.all(16),
@@ -561,12 +585,12 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               Container(
                 padding: EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: service['color'].withOpacity(0.1),
+                  color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  service['icon'],
-                  color: service['color'],
+                  Icons.construction,
+                  color: AppColors.primary,
                   size: 28,
                 ),
               ),
@@ -576,7 +600,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      service['name'],
+                      service.serviceName,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -588,7 +612,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                         Icon(Icons.star, size: 14, color: Colors.amber),
                         SizedBox(width: 4),
                         Text(
-                          '${service['rating']} • ${service['bookings']} bookings',
+                          '${service.rating?.toStringAsFixed(1) ?? '0.0'} • ${service.totalBookings} bookings',
                           style: TextStyle(
                             color: AppColors.textSecondary,
                             fontSize: 12,
@@ -603,7 +627,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'Rs ${service['price']}/hr',
+                    'Rs ${service.pricePerHour?.toStringAsFixed(0) ?? '0'}/hr',
                     style: TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -614,15 +638,15 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   Container(
                     padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: service['status'] == 'active'
+                      color: service.isActive
                           ? Colors.green.withOpacity(0.1)
                           : Colors.grey.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      service['status'] == 'active' ? 'Active' : 'Inactive',
+                      service.isActive ? 'Active' : 'Inactive',
                       style: TextStyle(
-                        color: service['status'] == 'active' ? Colors.green : Colors.grey,
+                        color: service.isActive ? Colors.green : Colors.grey,
                         fontSize: 10,
                         fontWeight: FontWeight.bold,
                       ),
@@ -638,8 +662,39 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   }
 
   Widget _buildRecentBookings() {
+    // For now, show empty state since we don't have bookings yet
+    return Container(
+      padding: EdgeInsets.all(32),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey.shade300),
+          SizedBox(height: 16),
+          Text(
+            'No Bookings Yet',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Your booking requests will appear here',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOldRecentBookings() {
     return Column(
-      children: _recentBookings.map((booking) {
+      children: [].map((booking) {
         Color statusColor = _getStatusColor(booking['status']);
         return Container(
           margin: EdgeInsets.only(bottom: 12),

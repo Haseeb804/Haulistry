@@ -16,7 +16,12 @@ class GraphQLService {
 
   /// Initialize GraphQL client
   void initialize() {
-    final httpLink = HttpLink(_graphqlEndpoint);
+    final httpLink = HttpLink(
+      _graphqlEndpoint,
+      defaultHeaders: {
+        'Content-Type': 'application/json',
+      },
+    );
 
     // Add authentication link to include Firebase token in headers
     final authLink = AuthLink(
@@ -35,6 +40,14 @@ class GraphQLService {
     _client = GraphQLClient(
       cache: GraphQLCache(store: InMemoryStore()),
       link: link,
+      defaultPolicies: DefaultPolicies(
+        query: Policies(
+          fetch: FetchPolicy.networkOnly,
+        ),
+        mutate: Policies(
+          fetch: FetchPolicy.networkOnly,
+        ),
+      ),
     );
   }
 
@@ -93,7 +106,14 @@ class GraphQLService {
             'phone': phone,
           },
         },
+        fetchPolicy: FetchPolicy.networkOnly,
       ),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        debugPrint('⏱️ Request timed out after 30 seconds');
+        throw Exception('Request timed out. Please check your internet connection and try again.');
+      },
     );
 
     if (result.hasException) {
@@ -172,7 +192,14 @@ class GraphQLService {
             if (description != null) 'description': description,
           },
         },
+        fetchPolicy: FetchPolicy.networkOnly,
       ),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        debugPrint('⏱️ Request timed out after 30 seconds');
+        throw Exception('Request timed out. Please check your internet connection and try again.');
+      },
     );
 
     if (result.hasException) {
@@ -210,6 +237,18 @@ class GraphQLService {
               isVerified
               createdAt
               updatedAt
+              profileImage
+              cnicNumber
+              cnicFrontImage
+              cnicBackImage
+              licenseImage
+              licenseNumber
+              rating
+              totalBookings
+              verificationStatus
+              documentsUploaded
+              yearsExperience
+              description
             }
           }
           ... on SeekerAuthResponse {
@@ -227,6 +266,7 @@ class GraphQLService {
               gender
               createdAt
               updatedAt
+              profileImage
             }
           }
         }
@@ -242,7 +282,13 @@ class GraphQLService {
             'password': password,
           },
         },
+        fetchPolicy: FetchPolicy.networkOnly,
       ),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        throw Exception('Login request timed out. Please check your connection and try again.');
+      },
     );
 
     if (result.hasException) {
@@ -288,10 +334,15 @@ class GraphQLService {
             fullName
             phone
             userType
+            profileImage
             businessName
             businessType
             serviceType
             cnicNumber
+            cnicFrontImage
+            cnicBackImage
+            licenseImage
+            licenseNumber
             address
             city
             province
@@ -300,6 +351,8 @@ class GraphQLService {
             rating
             totalBookings
             isVerified
+            verificationStatus
+            documentsUploaded
             createdAt
             updatedAt
           }
@@ -393,6 +446,12 @@ class GraphQLService {
     String? province,
     int? yearsExperience,
     String? description,
+    // Document images (Base64 data URLs)
+    String? profileImage,
+    String? cnicFrontImage,
+    String? cnicBackImage,
+    String? licenseImage,
+    String? licenseNumber,
   }) async {
     print('📡 GraphQL: Updating provider profile...');
     
@@ -417,9 +476,15 @@ class GraphQLService {
             yearsExperience
             description
             profileImage
+            cnicFrontImage
+            cnicBackImage
+            licenseImage
+            licenseNumber
+            isVerified
+            documentsUploaded
+            verificationStatus
             rating
             totalBookings
-            isVerified
             createdAt
             updatedAt
           }
@@ -440,6 +505,12 @@ class GraphQLService {
     if (province != null) input['province'] = province;
     if (yearsExperience != null) input['yearsExperience'] = yearsExperience;
     if (description != null) input['description'] = description;
+    // Document images
+    if (profileImage != null) input['profileImage'] = profileImage;
+    if (cnicFrontImage != null) input['cnicFrontImage'] = cnicFrontImage;
+    if (cnicBackImage != null) input['cnicBackImage'] = cnicBackImage;
+    if (licenseImage != null) input['licenseImage'] = licenseImage;
+    if (licenseNumber != null) input['licenseNumber'] = licenseNumber;
 
     print('📤 Sending update with fields: ${input.keys.join(", ")}');
 
@@ -449,7 +520,14 @@ class GraphQLService {
         variables: {
           'input': input,
         },
+        fetchPolicy: FetchPolicy.networkOnly,
       ),
+    ).timeout(
+      const Duration(seconds: 30),
+      onTimeout: () {
+        debugPrint('⏱️ Request timed out after 30 seconds');
+        throw Exception('Request timed out. Please check your internet connection and try again.');
+      },
     );
 
     if (result.hasException) {
@@ -556,6 +634,508 @@ class GraphQLService {
       'message': response['message'],
       'user': response['user'],
     };
+  }
+
+  // ============================================================================
+  // VEHICLE MANAGEMENT
+  // ============================================================================
+
+  /// Add a new vehicle
+  Future<Map<String, dynamic>> addVehicle({
+    required String providerUid,
+    required String name,
+    required String vehicleType,
+    required String make,
+    required String model,
+    required int year,
+    required String registrationNumber,
+    String? capacity,
+    String condition = 'Good',
+    String? vehicleImage,
+    String? additionalImages,
+    bool hasInsurance = false,
+    String? insuranceExpiry,
+    bool isAvailable = true,
+    String? city,
+    String? province,
+    double? pricePerHour,
+    double? pricePerDay,
+    String? description,
+  }) async {
+    const String mutation = r'''
+      mutation AddVehicle($input: AddVehicleInput!) {
+        addVehicle(input: $input) {
+          success
+          message
+          vehicle {
+            vehicleId
+            name
+            vehicleType
+            make
+            model
+            year
+            registrationNumber
+            vehicleImage
+            city
+            province
+            pricePerHour
+            pricePerDay
+            isAvailable
+          }
+        }
+      }
+    ''';
+
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(mutation),
+        variables: {
+          'input': {
+            'providerUid': providerUid,
+            'name': name,
+            'vehicleType': vehicleType,
+            'make': make,
+            'model': model,
+            'year': year,
+            'registrationNumber': registrationNumber,
+            if (capacity != null) 'capacity': capacity,
+            'condition': condition,
+            if (vehicleImage != null) 'vehicleImage': vehicleImage,
+            if (additionalImages != null) 'additionalImages': additionalImages,
+            'hasInsurance': hasInsurance,
+            if (insuranceExpiry != null) 'insuranceExpiry': insuranceExpiry,
+            'isAvailable': isAvailable,
+            if (city != null) 'city': city,
+            if (province != null) 'province': province,
+            if (pricePerHour != null) 'pricePerHour': pricePerHour,
+            if (pricePerDay != null) 'pricePerDay': pricePerDay,
+            if (description != null) 'description': description,
+          },
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    return result.data!['addVehicle'];
+  }
+
+  /// Get all vehicles for a provider
+  Future<List<Map<String, dynamic>>> getProviderVehicles(String providerUid) async {
+    const String query = r'''
+      query ProviderVehicles($providerUid: String!) {
+        providerVehicles(providerUid: $providerUid) {
+          vehicleId
+          name
+          vehicleType
+          make
+          model
+          year
+          registrationNumber
+          capacity
+          condition
+          vehicleImage
+          additionalImages
+          hasInsurance
+          insuranceExpiry
+          isAvailable
+          city
+          province
+          pricePerHour
+          pricePerDay
+          description
+          createdAt
+          updatedAt
+        }
+      }
+    ''';
+
+    final result = await _client.query(
+      QueryOptions(
+        document: gql(query),
+        variables: {'providerUid': providerUid},
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    final vehicles = result.data!['providerVehicles'] as List;
+    return vehicles.map((v) => Map<String, dynamic>.from(v)).toList();
+  }
+
+  /// Update an existing vehicle
+  Future<Map<String, dynamic>> updateVehicle({
+    required String vehicleId,
+    String? name,
+    String? vehicleType,
+    String? make,
+    String? model,
+    int? year,
+    String? registrationNumber,
+    String? capacity,
+    String? condition,
+    String? vehicleImage,
+    String? additionalImages,
+    bool? hasInsurance,
+    String? insuranceExpiry,
+    bool? isAvailable,
+    String? city,
+    String? province,
+    double? pricePerHour,
+    double? pricePerDay,
+    String? description,
+  }) async {
+    const String mutation = r'''
+      mutation UpdateVehicle($input: UpdateVehicleInput!) {
+        updateVehicle(input: $input) {
+          success
+          message
+          vehicle {
+            vehicleId
+            name
+            vehicleType
+            make
+            model
+            year
+            registrationNumber
+            vehicleImage
+            city
+            province
+            pricePerHour
+            pricePerDay
+            isAvailable
+          }
+        }
+      }
+    ''';
+
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(mutation),
+        variables: {
+          'input': {
+            'vehicleId': vehicleId,
+            if (name != null) 'name': name,
+            if (vehicleType != null) 'vehicleType': vehicleType,
+            if (make != null) 'make': make,
+            if (model != null) 'model': model,
+            if (year != null) 'year': year,
+            if (registrationNumber != null) 'registrationNumber': registrationNumber,
+            if (capacity != null) 'capacity': capacity,
+            if (condition != null) 'condition': condition,
+            if (vehicleImage != null) 'vehicleImage': vehicleImage,
+            if (additionalImages != null) 'additionalImages': additionalImages,
+            if (hasInsurance != null) 'hasInsurance': hasInsurance,
+            if (insuranceExpiry != null) 'insuranceExpiry': insuranceExpiry,
+            if (isAvailable != null) 'isAvailable': isAvailable,
+            if (city != null) 'city': city,
+            if (province != null) 'province': province,
+            if (pricePerHour != null) 'pricePerHour': pricePerHour,
+            if (pricePerDay != null) 'pricePerDay': pricePerDay,
+            if (description != null) 'description': description,
+          },
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    return result.data!['updateVehicle'];
+  }
+
+  /// Delete a vehicle (CASCADE - also deletes related services)
+  Future<Map<String, dynamic>> deleteVehicle(String vehicleId) async {
+    const String mutation = r'''
+      mutation DeleteVehicle($vehicleId: String!) {
+        deleteVehicle(vehicleId: $vehicleId) {
+          success
+          message
+        }
+      }
+    ''';
+
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(mutation),
+        variables: {'vehicleId': vehicleId},
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    return result.data!['deleteVehicle'];
+  }
+
+  // ============================================================================
+  // SERVICE MANAGEMENT
+  // ============================================================================
+
+  /// Add a new service
+  Future<Map<String, dynamic>> addService({
+    required String vehicleId,
+    required String providerUid,
+    required String serviceName,
+    required String serviceCategory,
+    double? pricePerHour,
+    double? pricePerDay,
+    double? pricePerService,
+    String? description,
+    String? serviceArea,
+    String? minBookingDuration,
+    bool isActive = true,
+    String? availableDays,
+    String? availableHours,
+    bool operatorIncluded = true,
+    bool fuelIncluded = false,
+    bool transportationIncluded = false,
+  }) async {
+    const String mutation = r'''
+      mutation AddService($input: AddServiceInput!) {
+        addService(input: $input) {
+          success
+          message
+          service {
+            serviceId
+            vehicleId
+            serviceName
+            serviceCategory
+            pricePerHour
+            pricePerDay
+            pricePerService
+            description
+            isActive
+            operatorIncluded
+            fuelIncluded
+            transportationIncluded
+          }
+        }
+      }
+    ''';
+
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(mutation),
+        variables: {
+          'input': {
+            'vehicleId': vehicleId,
+            'providerUid': providerUid,
+            'serviceName': serviceName,
+            'serviceCategory': serviceCategory,
+            if (pricePerHour != null) 'pricePerHour': pricePerHour,
+            if (pricePerDay != null) 'pricePerDay': pricePerDay,
+            if (pricePerService != null) 'pricePerService': pricePerService,
+            if (description != null) 'description': description,
+            if (serviceArea != null) 'serviceArea': serviceArea,
+            if (minBookingDuration != null) 'minBookingDuration': minBookingDuration,
+            'isActive': isActive,
+            if (availableDays != null) 'availableDays': availableDays,
+            if (availableHours != null) 'availableHours': availableHours,
+            'operatorIncluded': operatorIncluded,
+            'fuelIncluded': fuelIncluded,
+            'transportationIncluded': transportationIncluded,
+          },
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    return result.data!['addService'];
+  }
+
+  /// Get all services for a vehicle
+  Future<List<Map<String, dynamic>>> getVehicleServices(String vehicleId) async {
+    const String query = r'''
+      query VehicleServices($vehicleId: String!) {
+        vehicleServices(vehicleId: $vehicleId) {
+          serviceId
+          vehicleId
+          serviceName
+          serviceCategory
+          pricePerHour
+          pricePerDay
+          pricePerService
+          description
+          serviceArea
+          minBookingDuration
+          isActive
+          availableDays
+          availableHours
+          operatorIncluded
+          fuelIncluded
+          transportationIncluded
+          totalBookings
+          rating
+          createdAt
+          updatedAt
+        }
+      }
+    ''';
+
+    final result = await _client.query(
+      QueryOptions(
+        document: gql(query),
+        variables: {'vehicleId': vehicleId},
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    final services = result.data!['vehicleServices'] as List;
+    return services.map((s) => Map<String, dynamic>.from(s)).toList();
+  }
+
+  /// Get all services for a provider
+  Future<List<Map<String, dynamic>>> getProviderServices(String providerUid) async {
+    const String query = r'''
+      query ProviderServices($providerUid: String!) {
+        providerServices(providerUid: $providerUid) {
+          serviceId
+          vehicleId
+          serviceName
+          serviceCategory
+          pricePerHour
+          pricePerDay
+          pricePerService
+          description
+          serviceArea
+          minBookingDuration
+          isActive
+          availableDays
+          availableHours
+          operatorIncluded
+          fuelIncluded
+          transportationIncluded
+          totalBookings
+          rating
+          createdAt
+          updatedAt
+        }
+      }
+    ''';
+
+    final result = await _client.query(
+      QueryOptions(
+        document: gql(query),
+        variables: {'providerUid': providerUid},
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    final services = result.data!['providerServices'] as List;
+    return services.map((s) => Map<String, dynamic>.from(s)).toList();
+  }
+
+  /// Update an existing service
+  Future<Map<String, dynamic>> updateService({
+    required String serviceId,
+    String? serviceName,
+    String? serviceCategory,
+    double? pricePerHour,
+    double? pricePerDay,
+    double? pricePerService,
+    String? description,
+    String? serviceArea,
+    String? minBookingDuration,
+    bool? isActive,
+    String? availableDays,
+    String? availableHours,
+    bool? operatorIncluded,
+    bool? fuelIncluded,
+    bool? transportationIncluded,
+  }) async {
+    const String mutation = r'''
+      mutation UpdateService($input: UpdateServiceInput!) {
+        updateService(input: $input) {
+          success
+          message
+          service {
+            serviceId
+            serviceName
+            serviceCategory
+            pricePerHour
+            pricePerDay
+            pricePerService
+            description
+            isActive
+          }
+        }
+      }
+    ''';
+
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(mutation),
+        variables: {
+          'input': {
+            'serviceId': serviceId,
+            if (serviceName != null) 'serviceName': serviceName,
+            if (serviceCategory != null) 'serviceCategory': serviceCategory,
+            if (pricePerHour != null) 'pricePerHour': pricePerHour,
+            if (pricePerDay != null) 'pricePerDay': pricePerDay,
+            if (pricePerService != null) 'pricePerService': pricePerService,
+            if (description != null) 'description': description,
+            if (serviceArea != null) 'serviceArea': serviceArea,
+            if (minBookingDuration != null) 'minBookingDuration': minBookingDuration,
+            if (isActive != null) 'isActive': isActive,
+            if (availableDays != null) 'availableDays': availableDays,
+            if (availableHours != null) 'availableHours': availableHours,
+            if (operatorIncluded != null) 'operatorIncluded': operatorIncluded,
+            if (fuelIncluded != null) 'fuelIncluded': fuelIncluded,
+            if (transportationIncluded != null) 'transportationIncluded': transportationIncluded,
+          },
+        },
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    return result.data!['updateService'];
+  }
+
+  /// Delete a service
+  Future<Map<String, dynamic>> deleteService(String serviceId) async {
+    const String mutation = r'''
+      mutation DeleteService($serviceId: String!) {
+        deleteService(serviceId: $serviceId) {
+          success
+          message
+        }
+      }
+    ''';
+
+    final result = await _client.mutate(
+      MutationOptions(
+        document: gql(mutation),
+        variables: {'serviceId': serviceId},
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    return result.data!['deleteService'];
   }
 }
 
