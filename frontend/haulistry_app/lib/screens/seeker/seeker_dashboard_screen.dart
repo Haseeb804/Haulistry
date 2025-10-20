@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_constants.dart';
+import '../../utils/image_utils.dart';
 import '../../providers/seeker_preferences_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
@@ -17,14 +17,12 @@ class SeekerDashboardScreen extends StatefulWidget {
 
 class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
   int _selectedIndex = 0;
-  bool _showCompletionBanner = true;
 
   @override
   void initState() {
     super.initState();
     // Use addPostFrameCallback to avoid calling notifyListeners during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadBannerPreference();
       _checkPreferences();
     });
   }
@@ -33,115 +31,112 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     // Re-check if user has completed preferences when returning to dashboard
-    final authService = context.read<AuthService>();
-    final userProfile = authService.userProfile;
-    
-    if (userProfile != null) {
-      final hasPreferences = userProfile['serviceCategories'] != null || 
-                             userProfile['primaryPurpose'] != null;
-      
-      // If user has now completed preferences, hide and dismiss banner permanently
-      if (hasPreferences && _showCompletionBanner) {
-        _dismissBanner();
-      }
-    }
-  }
-
-  Future<void> _loadBannerPreference() async {
-    final prefs = await SharedPreferences.getInstance();
-    final dismissed = prefs.getBool('preferences_banner_dismissed') ?? false;
-    if (mounted) {
-      setState(() {
-        _showCompletionBanner = !dismissed;
-      });
-    }
-  }
-
-  Future<void> _dismissBanner() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('preferences_banner_dismissed', true);
-    setState(() {
-      _showCompletionBanner = false;
-    });
+    // This ensures banner visibility updates when user sets preferences
+    _checkPreferences();
   }
 
   Future<void> _checkPreferences() async {
+    final authService = context.read<AuthService>();
     final authProvider = context.read<AuthProvider>();
     final preferencesProvider = context.read<SeekerPreferencesProvider>();
     
-    await preferencesProvider.loadPreferences(authProvider.currentUser?.id ?? 'user_123');
+    await preferencesProvider.loadPreferences(
+      authProvider.currentUser?.id ?? 'user_123',
+      authService: authService,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final authService = Provider.of<AuthService>(context);
+    final userProfile = authService.userProfile;
+    
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.topRight,
-            colors: [
-              AppColors.primary,
-              AppColors.primary.withOpacity(0.8),
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Header
-              Padding(
-                padding: const EdgeInsets.all(20.0),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      backgroundColor: Colors.grey.shade50,
+      body: Column(
+        children: [
+          // Header with gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.topRight,
+                colors: [
+                  AppColors.primary,
+                  AppColors.primary.withOpacity(0.8),
+                ],
+              ),
+            ),
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  // Top Bar
+                  Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Row(
                       children: [
-                        Consumer<AuthService>(
-                          builder: (context, authService, child) {
-                            final userName = authService.userProfile?['fullName'] ?? 
-                                           authService.currentUser?.displayName ?? 
-                                           'User';
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hello, $userName! 👋',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'What service do you need today?',
-                                  style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
-                                    fontSize: 14,
-                                  ),
-                                ),
-                              ],
+                        Builder(
+                          builder: (context) {
+                            final imageBytes = ImageUtils.decodeBase64Image(userProfile?['profileImage']);
+                            return CircleAvatar(
+                              radius: 24,
+                              backgroundColor: Colors.white.withOpacity(0.2),
+                              backgroundImage: imageBytes != null 
+                                ? MemoryImage(imageBytes)
+                                : null,
+                              child: imageBytes == null
+                                ? Text(
+                                    (userProfile?['fullName'] ?? 'U')[0].toUpperCase(),
+                                    style: TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : null,
                             );
                           },
                         ),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(Icons.notifications_outlined, color: Colors.white),
-                              onPressed: () => context.push('/notifications'),
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.person_outline, color: Colors.white),
-                              onPressed: () => context.push('/seeker/profile'),
-                            ),
-                          ],
+                        SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome back,',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.9),
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                userProfile?['fullName'] ?? 'Seeker',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.message_outlined, color: Colors.white),
+                          onPressed: () => context.push('/messages'),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.notifications, color: Colors.white),
+                          onPressed: () => context.push('/notifications'),
                         ),
                       ],
                     ),
-                    SizedBox(height: 20),
-                    // Search Bar
-                    Container(
+                  ),
+
+                  // Search Bar
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    child: Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(15),
@@ -164,249 +159,230 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                         onTap: () => context.push('/seeker/services/all'),
                       ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Completion Banner (if preferences not set)
+          Consumer2<SeekerPreferencesProvider, AuthService>(
+            builder: (context, preferencesProvider, authService, child) {
+              // Check if user has set their preferences in backend
+              final hasPreferences = preferencesProvider.hasPreferences();
+              
+              // Only show banner if NO preferences are set
+              if (hasPreferences) {
+                return SizedBox.shrink();
+              }
+              
+              return Container(
+                margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
+                  ),
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.withOpacity(0.3),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
                   ],
                 ),
-              ),
-              // Completion Banner (if preferences not set)
-              Consumer<AuthService>(
-                builder: (context, authService, child) {
-                  final userProfile = authService.userProfile;
-                  
-                  // Check if user has set their preferences
-                  final hasPreferences = userProfile != null && 
-                      (userProfile['serviceCategories'] != null || 
-                       userProfile['primaryPurpose'] != null);
-                  
-                  if (hasPreferences || !_showCompletionBanner) {
-                    return SizedBox.shrink();
-                  }
-                  
-                  return Container(
-                    margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => context.push('/seeker/service-preferences'),
+                    borderRadius: BorderRadius.circular(15),
+                    child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(Icons.stars, color: Colors.white, size: 24),
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Get Better Matches! ✨',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Set your preferences to find perfect services',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.9),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+                        ],
                       ),
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.orange.withOpacity(0.3),
-                          blurRadius: 10,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => context.push('/seeker/service-preferences'),
-                        borderRadius: BorderRadius.circular(15),
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(Icons.stars, color: Colors.white, size: 24),
-                              ),
-                              SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Get Better Matches! ✨',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Tell us what services you need • 2 min',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
-                              SizedBox(width: 4),
-                              IconButton(
-                                icon: Icon(Icons.close, color: Colors.white, size: 20),
-                                onPressed: _dismissBanner,
-                                padding: EdgeInsets.zero,
-                                constraints: BoxConstraints(),
-                                tooltip: 'Dismiss',
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-
-              // Content
-              Expanded(
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(30),
-                      topRight: Radius.circular(30),
-                    ),
-                  ),
-                  child: SingleChildScrollView(
-                    padding: EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Services Section
-                        Text(
-                          'Our Services',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        GridView.count(
-                          shrinkWrap: true,
-                          physics: NeverScrollableScrollPhysics(),
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
-                          childAspectRatio: 0.85,
-                          children: [
-                            _buildServiceCard(
-                              'Harvester',
-                              Icons.agriculture_rounded,
-                              AppColors.harvester,
-                              '50+ Available',
-                              AppConstants.serviceHarvester,
-                            ),
-                            _buildServiceCard(
-                              'Sand Truck',
-                              Icons.local_shipping_rounded,
-                              AppColors.sandTruck,
-                              '35+ Available',
-                              AppConstants.serviceSandTruck,
-                            ),
-                            _buildServiceCard(
-                              'Brick Truck',
-                              Icons.fire_truck_rounded,
-                              AppColors.brickTruck,
-                              '28+ Available',
-                              AppConstants.serviceBrickTruck,
-                            ),
-                            _buildServiceCard(
-                              'Crane',
-                              Icons.construction_rounded,
-                              AppColors.crane,
-                              '42+ Available',
-                              AppConstants.serviceCrane,
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 30),
-
-                        // Recent Bookings Section
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Recent Bookings',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
-                            ),
-                            TextButton(
-                              onPressed: () => context.push('/seeker/my-bookings'),
-                              child: Text(
-                                'View All',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 12),
-                        _buildRecentBookingCard(
-                          'Harvester Service',
-                          'John Doe Farming',
-                          'Oct 15, 2025',
-                          'Completed',
-                          Colors.green,
-                          Icons.agriculture_rounded,
-                        ),
-                        SizedBox(height: 12),
-                        _buildRecentBookingCard(
-                          'Sand Delivery',
-                          'ABC Transport',
-                          'Oct 20, 2025',
-                          'Upcoming',
-                          AppColors.primary,
-                          Icons.local_shipping_rounded,
-                        ),
-
-                        SizedBox(height: 30),
-
-                        // Quick Actions
-                        Text(
-                          'Quick Actions',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildQuickActionCard(
-                                'My Favorites',
-                                Icons.favorite_outline,
-                                AppColors.error,
-                                () => context.push('/seeker/favorites'),
-                              ),
-                            ),
-                            SizedBox(width: 12),
-                            Expanded(
-                              child: _buildQuickActionCard(
-                                'Messages',
-                                Icons.message_outlined,
-                                AppColors.secondary,
-                                () => context.push('/messages'),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        SizedBox(height: 20),
-                      ],
                     ),
                   ),
                 ),
-              ),
-            ],
+              );
+            },
           ),
-        ),
+
+          // Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Services Section
+                  Text(
+                    'Our Services',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                    childAspectRatio: 0.85,
+                    children: [
+                      _buildServiceCard(
+                        'Harvester',
+                        Icons.agriculture_rounded,
+                        AppColors.harvester,
+                        '50+ Available',
+                        AppConstants.serviceHarvester,
+                      ),
+                      _buildServiceCard(
+                        'Sand Truck',
+                        Icons.local_shipping_rounded,
+                        AppColors.sandTruck,
+                        '35+ Available',
+                        AppConstants.serviceSandTruck,
+                      ),
+                      _buildServiceCard(
+                        'Brick Truck',
+                        Icons.fire_truck_rounded,
+                        AppColors.brickTruck,
+                        '28+ Available',
+                        AppConstants.serviceBrickTruck,
+                      ),
+                      _buildServiceCard(
+                        'Crane',
+                        Icons.construction_rounded,
+                        AppColors.crane,
+                        '42+ Available',
+                        AppConstants.serviceCrane,
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 30),
+
+                  // Recent Bookings Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Recent Bookings',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => context.push('/seeker/my-bookings'),
+                        child: Text(
+                          'View All',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 12),
+                  _buildRecentBookingCard(
+                    'Harvester Service',
+                    'John Doe Farming',
+                    'Oct 15, 2025',
+                    'Completed',
+                    Colors.green,
+                    Icons.agriculture_rounded,
+                  ),
+                  SizedBox(height: 12),
+                  _buildRecentBookingCard(
+                    'Sand Delivery',
+                    'ABC Transport',
+                    'Oct 20, 2025',
+                    'Upcoming',
+                    AppColors.primary,
+                    Icons.local_shipping_rounded,
+                  ),
+
+                  SizedBox(height: 30),
+
+                  // Quick Actions
+                  Text(
+                    'Quick Actions',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildQuickActionCard(
+                          'My Favorites',
+                          Icons.favorite_outline,
+                          AppColors.error,
+                          () => context.push('/seeker/favorites'),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: _buildQuickActionCard(
+                          'Messages',
+                          Icons.message_outlined,
+                          AppColors.secondary,
+                          () => context.push('/messages'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  SizedBox(height: 20),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBottomNav(),
     );

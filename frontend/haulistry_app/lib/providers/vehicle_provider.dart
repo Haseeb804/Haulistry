@@ -32,14 +32,11 @@ class VehicleProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('🔄 Loading vehicles for provider: $_providerUid');
       final vehiclesData = await _graphqlService.getProviderVehicles(_providerUid!);
       
       _vehicles = vehiclesData.map((data) => Vehicle.fromGraphQL(data)).toList();
-      print('✅ Loaded ${_vehicles.length} vehicles');
     } catch (e) {
       _error = 'Failed to load vehicles: $e';
-      print('❌ Error loading vehicles: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -55,7 +52,6 @@ class VehicleProvider extends ChangeNotifier {
     }
 
     try {
-      print('🚗 Adding vehicle: ${vehicle.vehicleName}');
       
       final response = await _graphqlService.addVehicle(
         providerUid: _providerUid!,
@@ -81,7 +77,6 @@ class VehicleProvider extends ChangeNotifier {
       if (response['success'] == true) {
         // Reload vehicles to get updated list
         await loadVehicles();
-        print('✅ Vehicle added successfully');
         return true;
       }
       
@@ -90,7 +85,6 @@ class VehicleProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Failed to add vehicle: $e';
-      print('❌ Error adding vehicle: $e');
       notifyListeners();
       return false;
     }
@@ -99,7 +93,6 @@ class VehicleProvider extends ChangeNotifier {
   // Update existing vehicle via GraphQL
   Future<bool> updateVehicle(String vehicleId, Vehicle updatedVehicle) async {
     try {
-      print('🔧 Updating vehicle: $vehicleId');
       
       final response = await _graphqlService.updateVehicle(
         vehicleId: vehicleId,
@@ -124,7 +117,6 @@ class VehicleProvider extends ChangeNotifier {
 
       if (response['success'] == true) {
         await loadVehicles();
-        print('✅ Vehicle updated successfully');
         return true;
       }
       
@@ -133,7 +125,6 @@ class VehicleProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Failed to update vehicle: $e';
-      print('❌ Error updating vehicle: $e');
       notifyListeners();
       return false;
     }
@@ -142,13 +133,11 @@ class VehicleProvider extends ChangeNotifier {
   // Delete vehicle via GraphQL (CASCADE - deletes related services)
   Future<bool> deleteVehicle(String vehicleId) async {
     try {
-      print('🗑️  Deleting vehicle: $vehicleId (CASCADE - will delete services)');
       
       final response = await _graphqlService.deleteVehicle(vehicleId);
 
       if (response['success'] == true) {
         await loadVehicles();
-        print('✅ Vehicle and related services deleted successfully');
         return true;
       }
       
@@ -157,7 +146,6 @@ class VehicleProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Failed to delete vehicle: $e';
-      print('❌ Error deleting vehicle: $e');
       notifyListeners();
       return false;
     }
@@ -169,7 +157,6 @@ class VehicleProvider extends ChangeNotifier {
       final vehicle = getVehicleById(vehicleId);
       if (vehicle == null) return false;
 
-      print('🔄 Toggling availability for vehicle: $vehicleId');
       
       final response = await _graphqlService.updateVehicle(
         vehicleId: vehicleId,
@@ -178,14 +165,12 @@ class VehicleProvider extends ChangeNotifier {
 
       if (response['success'] == true) {
         await loadVehicles();
-        print('✅ Availability toggled successfully');
         return true;
       }
       
       return false;
     } catch (e) {
       _error = 'Failed to toggle availability: $e';
-      print('❌ Error toggling availability: $e');
       notifyListeners();
       return false;
     }

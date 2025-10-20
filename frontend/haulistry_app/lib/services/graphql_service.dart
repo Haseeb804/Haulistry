@@ -1,6 +1,7 @@
 import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart'; // Import for ValueNotifier
+import 'package:http/http.dart' as http;
 
 class GraphQLService {
   static final GraphQLService _instance = GraphQLService._internal();
@@ -16,8 +17,12 @@ class GraphQLService {
 
   /// Initialize GraphQL client
   void initialize() {
+    // Create custom HTTP client with extended timeout
+    final httpClient = http.Client();
+    
     final httpLink = HttpLink(
       _graphqlEndpoint,
+      httpClient: httpClient,
       defaultHeaders: {
         'Content-Type': 'application/json',
       },
@@ -70,10 +75,6 @@ class GraphQLService {
     required String fullName,
     required String phone,
   }) async {
-    debugPrint('\n🌐 GraphQL Service - registerSeeker');
-    debugPrint('   Endpoint: $_graphqlEndpoint');
-    debugPrint('   Email: $email');
-    debugPrint('   Name: $fullName');
     
     const String mutation = r'''
       mutation RegisterSeeker($input: SeekerRegisterInput!) {
@@ -94,7 +95,6 @@ class GraphQLService {
       }
     ''';
 
-    debugPrint('📤 Sending mutation request...');
     final result = await _client.mutate(
       MutationOptions(
         document: gql(mutation),
@@ -109,21 +109,16 @@ class GraphQLService {
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     ).timeout(
-      const Duration(seconds: 30),
+      const Duration(seconds: 60),
       onTimeout: () {
-        debugPrint('⏱️ Request timed out after 30 seconds');
         throw Exception('Request timed out. Please check your internet connection and try again.');
       },
     );
 
     if (result.hasException) {
-      debugPrint('❌ GraphQL Exception: ${result.exception}');
-      debugPrint('❌ Link Exception: ${result.exception?.linkException}');
-      debugPrint('❌ GraphQL Errors: ${result.exception?.graphqlErrors}');
       throw result.exception!;
     }
 
-    debugPrint('✅ GraphQL Success: ${result.data}');
     return result.data!['registerSeeker'];
   }
 
@@ -195,9 +190,8 @@ class GraphQLService {
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     ).timeout(
-      const Duration(seconds: 30),
+      const Duration(seconds: 60),
       onTimeout: () {
-        debugPrint('⏱️ Request timed out after 30 seconds');
         throw Exception('Request timed out. Please check your internet connection and try again.');
       },
     );
@@ -261,12 +255,19 @@ class GraphQLService {
               fullName
               phone
               userType
+              profileImage
               address
               bio
               gender
+              dateOfBirth
+              serviceCategories
+              categoryDetails
+              serviceRequirements
+              primaryPurpose
+              urgency
+              preferencesNotes
               createdAt
               updatedAt
-              profileImage
             }
           }
         }
@@ -285,7 +286,7 @@ class GraphQLService {
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     ).timeout(
-      const Duration(seconds: 30),
+      const Duration(seconds: 60),
       onTimeout: () {
         throw Exception('Login request timed out. Please check your connection and try again.');
       },
@@ -453,7 +454,6 @@ class GraphQLService {
     String? licenseImage,
     String? licenseNumber,
   }) async {
-    print('📡 GraphQL: Updating provider profile...');
     
     const String mutation = r'''
       mutation UpdateProviderProfile($input: UpdateProviderProfileInput!) {
@@ -512,7 +512,6 @@ class GraphQLService {
     if (licenseImage != null) input['licenseImage'] = licenseImage;
     if (licenseNumber != null) input['licenseNumber'] = licenseNumber;
 
-    print('📤 Sending update with fields: ${input.keys.join(", ")}');
 
     final QueryResult result = await _client.mutate(
       MutationOptions(
@@ -523,20 +522,17 @@ class GraphQLService {
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     ).timeout(
-      const Duration(seconds: 30),
+      const Duration(seconds: 60),
       onTimeout: () {
-        debugPrint('⏱️ Request timed out after 30 seconds');
         throw Exception('Request timed out. Please check your internet connection and try again.');
       },
     );
 
     if (result.hasException) {
-      print('❌ GraphQL Error: ${result.exception}');
       throw result.exception!;
     }
 
     final response = result.data!['updateProviderProfile'];
-    print('✅ Update response: ${response['message']}');
     
     return {
       'success': response['success'],
@@ -561,7 +557,6 @@ class GraphQLService {
     String? urgency,
     String? preferencesNotes,
   }) async {
-    print('📡 GraphQL: Updating seeker profile...');
     
     const String mutation = r'''
       mutation UpdateSeekerProfile($input: UpdateSeekerProfileInput!) {
@@ -610,7 +605,6 @@ class GraphQLService {
     if (urgency != null) input['urgency'] = urgency;
     if (preferencesNotes != null) input['preferencesNotes'] = preferencesNotes;
 
-    print('📤 Sending update with fields: ${input.keys.join(", ")}');
 
     final QueryResult result = await _client.mutate(
       MutationOptions(
@@ -622,18 +616,35 @@ class GraphQLService {
     );
 
     if (result.hasException) {
-      print('❌ GraphQL Error: ${result.exception}');
       throw result.exception!;
     }
 
     final response = result.data!['updateSeekerProfile'];
-    print('✅ Update response: ${response['message']}');
     
     return {
       'success': response['success'],
       'message': response['message'],
       'user': response['user'],
     };
+  }
+
+  /// Clear seeker preferences by setting all preference fields to null in Neo4j
+  Future<Map<String, dynamic>> clearSeekerPreferences({
+    required String uid,
+  }) async {
+    
+    // Set all preference-related fields to empty strings (which will be stored as null/empty in Neo4j)
+    final result = await updateSeekerProfile(
+      uid: uid,
+      serviceCategories: '[]',  // Empty JSON array
+      categoryDetails: '{}',     // Empty JSON object
+      serviceRequirements: '{}', // Empty JSON object
+      primaryPurpose: '',        // Empty string
+      urgency: '',              // Empty string
+      preferencesNotes: '',     // Empty string
+    );
+    
+    return result;
   }
 
   // ============================================================================

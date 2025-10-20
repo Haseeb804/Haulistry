@@ -399,9 +399,15 @@ class _SeekerServicePreferencesScreenState extends State<SeekerServicePreference
         return GestureDetector(
           onTap: () {
             setState(() {
+              // Deselect all categories first (single selection mode)
+              for (final cat in categories) {
+                _selectedCategories[cat] = false;
+                _selectedSubcategories[cat] = [];
+              }
+              // Then select the clicked category
               _selectedCategories[category] = !isSelected;
-              if (!isSelected) {
-                // Clear subcategories when deselecting category
+              if (isSelected) {
+                // If it was already selected and clicked again, deselect it
                 _selectedSubcategories[category] = [];
               }
             });

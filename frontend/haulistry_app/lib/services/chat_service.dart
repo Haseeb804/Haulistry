@@ -22,7 +22,6 @@ class ChatService {
   // Initialize chat service
   Future<void> initialize() async {
     // TODO: Initialize Firebase Database or Socket.IO connection
-    print('Chat service initialized');
   }
 
   // Get all chat rooms for a user

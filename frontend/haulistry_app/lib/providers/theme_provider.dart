@@ -32,7 +32,6 @@ class ThemeProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isDarkMode', _isDarkMode);
     } catch (e) {
-      print('Error saving theme preference: $e');
     }
   }
 
@@ -46,7 +45,6 @@ class ThemeProvider with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('isDarkMode', _isDarkMode);
     } catch (e) {
-      print('Error saving theme preference: $e');
     }
   }
 

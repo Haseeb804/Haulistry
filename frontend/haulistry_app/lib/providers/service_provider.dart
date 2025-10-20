@@ -32,14 +32,11 @@ class ServiceProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      print('🔄 Loading services for provider: $_providerUid');
       final servicesData = await _graphqlService.getProviderServices(_providerUid!);
       
       _services = servicesData.map((data) => Service.fromGraphQL(data)).toList();
-      print('✅ Loaded ${_services.length} services');
     } catch (e) {
       _error = 'Failed to load services: $e';
-      print('❌ Error loading services: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -49,14 +46,11 @@ class ServiceProvider extends ChangeNotifier {
   // Load services for a specific vehicle
   Future<List<Service>> loadVehicleServices(String vehicleId) async {
     try {
-      print('🔄 Loading services for vehicle: $vehicleId');
       final servicesData = await _graphqlService.getVehicleServices(vehicleId);
       
       final vehicleServices = servicesData.map((data) => Service.fromGraphQL(data)).toList();
-      print('✅ Loaded ${vehicleServices.length} services for vehicle');
       return vehicleServices;
     } catch (e) {
-      print('❌ Error loading vehicle services: $e');
       return [];
     }
   }
@@ -70,7 +64,6 @@ class ServiceProvider extends ChangeNotifier {
     }
 
     try {
-      print('🛠️  Adding service: ${service.serviceName}');
       
       final response = await _graphqlService.addService(
         vehicleId: service.vehicleId,
@@ -94,7 +87,6 @@ class ServiceProvider extends ChangeNotifier {
       if (response['success'] == true) {
         // Reload services to get updated list
         await loadServices();
-        print('✅ Service added successfully');
         return true;
       }
       
@@ -103,7 +95,6 @@ class ServiceProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Failed to add service: $e';
-      print('❌ Error adding service: $e');
       notifyListeners();
       return false;
     }
@@ -112,7 +103,6 @@ class ServiceProvider extends ChangeNotifier {
   // Update existing service via GraphQL
   Future<bool> updateService(String serviceId, Service updatedService) async {
     try {
-      print('🔧 Updating service: $serviceId');
       
       final response = await _graphqlService.updateService(
         serviceId: serviceId,
@@ -134,7 +124,6 @@ class ServiceProvider extends ChangeNotifier {
 
       if (response['success'] == true) {
         await loadServices();
-        print('✅ Service updated successfully');
         return true;
       }
       
@@ -143,7 +132,6 @@ class ServiceProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Failed to update service: $e';
-      print('❌ Error updating service: $e');
       notifyListeners();
       return false;
     }
@@ -152,13 +140,11 @@ class ServiceProvider extends ChangeNotifier {
   // Delete service via GraphQL
   Future<bool> deleteService(String serviceId) async {
     try {
-      print('🗑️  Deleting service: $serviceId');
       
       final response = await _graphqlService.deleteService(serviceId);
 
       if (response['success'] == true) {
         await loadServices();
-        print('✅ Service deleted successfully');
         return true;
       }
       
@@ -167,7 +153,6 @@ class ServiceProvider extends ChangeNotifier {
       return false;
     } catch (e) {
       _error = 'Failed to delete service: $e';
-      print('❌ Error deleting service: $e');
       notifyListeners();
       return false;
     }
@@ -179,7 +164,6 @@ class ServiceProvider extends ChangeNotifier {
       final service = getServiceById(serviceId);
       if (service == null) return false;
 
-      print('🔄 Toggling service status: $serviceId');
       
       final response = await _graphqlService.updateService(
         serviceId: serviceId,
@@ -188,14 +172,12 @@ class ServiceProvider extends ChangeNotifier {
 
       if (response['success'] == true) {
         await loadServices();
-        print('✅ Service status toggled successfully');
         return true;
       }
       
       return false;
     } catch (e) {
       _error = 'Failed to toggle service status: $e';
-      print('❌ Error toggling service status: $e');
       notifyListeners();
       return false;
     }

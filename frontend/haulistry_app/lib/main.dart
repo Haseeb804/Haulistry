@@ -59,6 +59,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => VehicleProvider()),
         ChangeNotifierProvider(create: (_) => ServiceProvider()),
+        // SeekerPreferencesProvider - will access AuthService via context when needed
         ChangeNotifierProvider(create: (_) => SeekerPreferencesProvider()),
       ],
       child: Consumer<ThemeProvider>(

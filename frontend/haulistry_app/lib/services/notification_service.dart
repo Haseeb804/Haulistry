@@ -80,7 +80,6 @@ class NotificationService {
   // Handle notification tap
   void _onNotificationTapped(NotificationResponse response) {
     // TODO: Handle navigation based on payload
-    print('Notification tapped: ${response.payload}');
   }
 
   // Get all notifications (from local storage)

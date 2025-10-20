@@ -46,6 +46,7 @@ class UserRepository:
             SET s.uid = $uid,
                 s.email = $email,
                 s.full_name = $full_name,
+                s.name = $full_name,
                 s.phone = $phone,
                 s.profile_image = $profile_image,
                 s.address = $address,
@@ -118,6 +119,7 @@ class UserRepository:
             SET p.uid = $uid,
                 p.email = $email,
                 p.full_name = $full_name,
+                p.name = $full_name,
                 p.phone = $phone,
                 p.business_name = $business_name,
                 p.business_type = $business_type,
@@ -447,12 +449,6 @@ class UserRepository:
             dict: Updated provider data
         """
         with self.driver.session() as session:
-            print(f"\n{'='*60}")
-            print(f"💾 UPDATING PROVIDER PROFILE IN NEO4J")
-            print(f"   UID: {uid}")
-            print(f"   Fields to update: {list(update_data.keys())}")
-            print(f"{'='*60}\n")
-            
             # Build SET clause dynamically
             set_clauses = []
             params = {"uid": uid}
@@ -461,6 +457,10 @@ class UserRepository:
                 set_clauses.append(f"p.{key} = ${key}")
                 params[key] = value
             
+            # Ensure 'name' property always matches 'full_name' for graph visualization
+            # This property is used by Neo4j Browser to display node labels
+            # We need to get the current full_name and set it as name
+            
             # Always update timestamp
             set_clauses.append("p.updated_at = datetime()")
             
@@ -468,13 +468,9 @@ class UserRepository:
             
             query = f"""
             MATCH (p:Provider {{uid: $uid}})
-            SET {set_clause}
+            SET {set_clause}, p.name = p.full_name
             RETURN p
             """
-            
-            print(f"🔍 Cypher Query:")
-            print(f"   {query}")
-            print(f"📊 Parameters: {params}\n")
             
             result = session.run(query, params)
             record = result.single()
@@ -493,12 +489,8 @@ class UserRepository:
                 elif 'updated_at' in node_data and hasattr(node_data['updated_at'], 'isoformat'):
                     node_data['updated_at'] = node_data['updated_at'].isoformat()
                 
-                print(f"✅ Provider profile updated successfully")
-                print(f"   Total properties: {len(node_data)}")
-                print(f"   Updated fields: {list(update_data.keys())}\n")
                 return node_data
             else:
-                print(f"❌ Provider not found with UID: {uid}\n")
                 return None
 
 
@@ -535,7 +527,7 @@ class UserRepository:
             
             query = f"""
             MATCH (s:Seeker {{uid: $uid}})
-            SET {set_clause}
+            SET {set_clause}, s.name = s.full_name
             RETURN s
             """
             

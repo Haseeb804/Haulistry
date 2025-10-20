@@ -43,17 +43,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     
     // 🐛 DEBUG: Print profile image data (only once when not loading)
     if (!_isLoading && userProfile != null) {
-      print('═══════════════════════════════════');
-      print('📸 DASHBOARD PROFILE PICTURE DEBUG');
-      print('═══════════════════════════════════');
-      print('User: ${userProfile['fullName']}');
-      print('Has profileImage: ${userProfile.containsKey('profileImage')}');
-      print('ProfileImage is null: ${userProfile['profileImage'] == null}');
-      print('ProfileImage is empty: ${userProfile['profileImage'] == ''}');
       if (userProfile['profileImage'] != null && userProfile['profileImage'] != '') {
-        print('ProfileImage length: ${(userProfile['profileImage'] as String).length}');
       }
-      print('═══════════════════════════════════\n');
     }
     
     if (_isLoading) {

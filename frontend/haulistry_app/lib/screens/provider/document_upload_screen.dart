@@ -768,17 +768,11 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
 
     try {
       // Convert images to Base64
-      print('📸 Converting images to Base64...');
       final profileBase64 = await ImageUtils.convertImageToBase64(_profileImage!);
       final cnicFrontBase64 = await ImageUtils.convertImageToBase64(_cnicFrontImage!);
       final cnicBackBase64 = await ImageUtils.convertImageToBase64(_cnicBackImage!);
       final licenseBase64 = await ImageUtils.convertImageToBase64(_licenseImage!);
       
-      print('✅ Images converted. Sizes:');
-      print('   Profile: ${ImageUtils.getBase64FileSizeKB(profileBase64).toStringAsFixed(2)} KB');
-      print('   CNIC Front: ${ImageUtils.getBase64FileSizeKB(cnicFrontBase64).toStringAsFixed(2)} KB');
-      print('   CNIC Back: ${ImageUtils.getBase64FileSizeKB(cnicBackBase64).toStringAsFixed(2)} KB');
-      print('   License: ${ImageUtils.getBase64FileSizeKB(licenseBase64).toStringAsFixed(2)} KB');
       
       // Get AuthService instance from Provider
       final authService = Provider.of<AuthService>(context, listen: false);
@@ -789,7 +783,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       }
       
       // Upload documents via AuthService (handles profile update automatically)
-      print('📤 Uploading documents to server...');
       final success = await authService.updateProviderProfile(
         uid: uid,
         profileImage: profileBase64,
@@ -899,7 +892,6 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     } catch (e) {
       setState(() => _isUploading = false);
       
-      print('❌ Document upload failed: $e');
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

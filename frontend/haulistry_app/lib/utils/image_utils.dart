@@ -154,7 +154,6 @@ class ImageUtils {
       // Decode Base64 to bytes
       return base64Decode(base64Data);
     } catch (e) {
-      print('Error decoding Base64 image: $e');
       return null;
     }
   }

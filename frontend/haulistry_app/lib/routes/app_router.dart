@@ -16,6 +16,7 @@ import '../screens/seeker/edit_profile_screen.dart';
 import '../screens/seeker/favorites_screen.dart';
 import '../screens/seeker/settings_screen.dart' as seeker_settings;
 import '../screens/seeker/seeker_service_preferences_screen.dart';
+import '../screens/seeker/view_preferences_screen.dart';
 import '../screens/provider/provider_dashboard_screen.dart';
 import '../screens/provider/vehicle_details_screen.dart';
 import '../screens/provider/vehicle_management_screen.dart';
@@ -153,6 +154,11 @@ class AppRouter {
         path: '/seeker/service-preferences',
         name: 'seeker-service-preferences',
         builder: (context, state) => const SeekerServicePreferencesScreen(),
+      ),
+      GoRoute(
+        path: '/seeker/view-preferences',
+        name: 'view-preferences',
+        builder: (context, state) => const ViewPreferencesScreen(),
       ),
       
       // Provider Routes

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
+import '../../providers/seeker_preferences_provider.dart';
+import '../../providers/auth_provider.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -21,15 +23,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_hasLoadedData) {
-      _loadUserData();
       _hasLoadedData = true;
+      // Use addPostFrameCallback to avoid calling setState during build
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadUserData();
+      });
     }
   }
 
-  void _loadUserData() {
+  Future<void> _loadUserData() async {
     final authService = context.read<AuthService>();
+    final authProvider = context.read<AuthProvider>();
+    final preferencesProvider = context.read<SeekerPreferencesProvider>();
     final userProfile = authService.userProfile;
     
+    // Load preferences - pass authService so it can read from userProfile
+    await preferencesProvider.loadPreferences(
+      authProvider.currentUser?.id ?? 'user_123',
+      authService: authService,
+    );
     
     if (userProfile != null) {
       setState(() {
@@ -68,55 +80,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       'subtitle': 'Update your personal information',
       'route': '/seeker/edit-profile',
       'color': AppColors.primary,
-    },
-    {
-      'icon': Icons.favorite,
-      'title': 'My Favorites',
-      'subtitle': 'View your favorite services',
-      'route': '/seeker/favorites',
-      'color': Colors.red,
-    },
-    {
-      'icon': Icons.payment,
-      'title': 'Payment Methods',
-      'subtitle': 'Manage your payment options',
-      'route': '/seeker/payment-methods',
-      'color': Colors.green,
-    },
-    {
-      'icon': Icons.location_on,
-      'title': 'Saved Addresses',
-      'subtitle': 'Manage your delivery addresses',
-      'route': '/seeker/addresses',
-      'color': Colors.orange,
-    },
-    {
-      'icon': Icons.notifications,
-      'title': 'Notifications',
-      'subtitle': 'Manage notification preferences',
-      'route': '/seeker/notifications',
-      'color': Colors.purple,
-    },
-    {
-      'icon': Icons.security,
-      'title': 'Privacy & Security',
-      'subtitle': 'Account security settings',
-      'route': '/seeker/security',
-      'color': Colors.indigo,
-    },
-    {
-      'icon': Icons.help,
-      'title': 'Help & Support',
-      'subtitle': 'Get help and contact support',
-      'route': '/seeker/help',
-      'color': Colors.teal,
-    },
-    {
-      'icon': Icons.info,
-      'title': 'About',
-      'subtitle': 'App version and information',
-      'route': '/seeker/about',
-      'color': Colors.grey,
     },
   ];
 
@@ -201,33 +164,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      body: Column(
-        children: [
-          // Header with gradient
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.topRight,
-                colors: [
-                  AppColors.primary,
-                  AppColors.primary.withOpacity(0.8),
-                ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header with gradient
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.topRight,
+                  colors: [
+                    AppColors.primary,
+                    AppColors.primary.withOpacity(0.8),
+                  ],
+                ),
               ),
-            ),
-            child: SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  // Top bar
-                  Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_back_ios, color: Colors.white),
-                          onPressed: () => context.pop(),
-                        ),
+              child: SafeArea(
+                bottom: false,
+                child: Column(
+                  children: [
+                    // Top bar
+                    Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.arrow_back_ios, color: Colors.white),
+                            onPressed: () => context.pop(),
+                          ),
                         Expanded(
                           child: Text(
                             'Profile',
@@ -388,20 +352,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
 
+          // Service Preferences Section
+          Consumer<SeekerPreferencesProvider>(
+            builder: (context, preferencesProvider, child) {
+              return _buildPreferencesSection(preferencesProvider);
+            },
+          ),
+
+          SizedBox(height: 16),
+
           // Menu Items
-          Expanded(
-            child: ListView.builder(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
-              itemCount: _menuItems.length + 1, // +1 for logout button
-              itemBuilder: (context, index) {
-                if (index == _menuItems.length) {
-                  return _buildLogoutButton();
-                }
-                return _buildMenuItem(_menuItems[index]);
-              },
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              children: [
+                ..._menuItems.map((item) => _buildMenuItem(item)).toList(),
+                _buildLogoutButton(),
+              ],
             ),
           ),
         ],
+      ),
       ),
     );
   }
@@ -633,5 +604,240 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildPreferencesSection(SeekerPreferencesProvider preferencesProvider) {
+    final hasPreferences = preferencesProvider.hasPreferences();
+    
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.tune, color: Colors.blue, size: 24),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Service Preferences',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        hasPreferences 
+                          ? 'Your service preferences are set'
+                          : 'Set your preferences for better matches',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          
+          if (hasPreferences) ...[
+            Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Selected Categories
+                  Text(
+                    'Selected Services',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: preferencesProvider.getSelectedCategories().take(5).map((category) {
+                      return Container(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _getCategoryIcon(category),
+                              size: 14,
+                              color: AppColors.primary,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              category,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  
+                  if (preferencesProvider.getSelectedCategories().length > 5) ...[
+                    SizedBox(height: 8),
+                    Text(
+                      '+ ${preferencesProvider.getSelectedCategories().length - 5} more',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                  
+                  SizedBox(height: 16),
+                  
+                  // Action Buttons
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => context.push('/seeker/view-preferences'),
+                          icon: Icon(Icons.visibility, size: 18),
+                          label: Text('View Details'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: BorderSide(color: AppColors.primary),
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () => context.push('/seeker/service-preferences'),
+                          icon: Icon(Icons.edit, size: 18),
+                          label: Text('Update'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Divider(height: 1),
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.tune,
+                    size: 48,
+                    color: Colors.grey.shade300,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'No preferences set yet',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Set your preferences to get personalized recommendations',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => context.push('/seeker/service-preferences'),
+                      label: Text('Set Preferences'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'Agriculture':
+        return Icons.agriculture;
+      case 'Construction':
+        return Icons.construction;
+      case 'Transportation':
+        return Icons.local_shipping;
+      case 'Heavy Equipment':
+        return Icons.precision_manufacturing;
+      default:
+        return Icons.category;
+    }
   }
 }

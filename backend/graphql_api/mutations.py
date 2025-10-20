@@ -395,10 +395,6 @@ class Mutation:
                 }
                 updated_user = user_repo.update_provider_profile(input.uid, verification_update)
             
-            print(f"✅ Provider profile updated successfully")
-            print(f"   Updated fields: {list(update_data.keys())}")
-            print(f"   Documents uploaded: {updated_user.get('documents_uploaded', False)}\n")
-            
             # Create Provider object from result
             user = Provider(
                 uid=updated_user['uid'],
@@ -508,27 +504,45 @@ class Mutation:
             
             if input.service_categories is not None:
                 update_data['service_categories'] = input.service_categories
-                print(f"   ✓ Will update: service_categories (JSON)")
+                if input.service_categories in ['[]', '{}', '']:
+                    print(f"   🗑️ CLEARING: service_categories = '{input.service_categories}'")
+                else:
+                    print(f"   ✓ Will update: service_categories (JSON)")
             
             if input.category_details is not None:
                 update_data['category_details'] = input.category_details
-                print(f"   ✓ Will update: category_details (JSON)")
+                if input.category_details in ['[]', '{}', '']:
+                    print(f"   🗑️ CLEARING: category_details = '{input.category_details}'")
+                else:
+                    print(f"   ✓ Will update: category_details (JSON)")
             
             if input.service_requirements is not None:
                 update_data['service_requirements'] = input.service_requirements
-                print(f"   ✓ Will update: service_requirements (JSON)")
+                if input.service_requirements in ['[]', '{}', '']:
+                    print(f"   🗑️ CLEARING: service_requirements = '{input.service_requirements}'")
+                else:
+                    print(f"   ✓ Will update: service_requirements (JSON)")
             
             if input.primary_purpose is not None:
                 update_data['primary_purpose'] = input.primary_purpose
-                print(f"   ✓ Will update: primary_purpose = {input.primary_purpose}")
+                if input.primary_purpose == '':
+                    print(f"   🗑️ CLEARING: primary_purpose")
+                else:
+                    print(f"   ✓ Will update: primary_purpose = {input.primary_purpose}")
             
             if input.urgency is not None:
                 update_data['urgency'] = input.urgency
-                print(f"   ✓ Will update: urgency = {input.urgency}")
+                if input.urgency == '':
+                    print(f"   🗑️ CLEARING: urgency")
+                else:
+                    print(f"   ✓ Will update: urgency = {input.urgency}")
             
             if input.preferences_notes is not None:
                 update_data['preferences_notes'] = input.preferences_notes
-                print(f"   ✓ Will update: preferences_notes")
+                if input.preferences_notes == '':
+                    print(f"   🗑️ CLEARING: preferences_notes")
+                else:
+                    print(f"   ✓ Will update: preferences_notes")
             
             print(f"\n📦 Total fields to update: {len(update_data)}")
             print(f"{'='*60}\n")

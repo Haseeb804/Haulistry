@@ -266,6 +266,7 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                         controller: _nameController,
                         label: 'Full Name',
                         icon: Icons.person,
+                        enabled: false, // Make read-only - name set during registration
                         validator: (value) {
                           if (value?.isEmpty ?? true) {
                             return 'Please enter your name';
@@ -279,6 +280,7 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                         label: 'Email',
                         icon: Icons.email,
                         keyboardType: TextInputType.emailAddress,
+                        enabled: false, // Make read-only - email set during registration
                         validator: (value) {
                           if (value?.isEmpty ?? true) {
                             return 'Please enter your email';
@@ -505,17 +507,19 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     String? hintText,
     TextInputType? keyboardType,
     int maxLines = 1,
+    bool enabled = true, // Add enabled parameter
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       maxLines: maxLines,
+      enabled: enabled, // Use the enabled parameter
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
-        prefixIcon: Icon(icon, color: AppColors.primary),
+        prefixIcon: Icon(icon, color: enabled ? AppColors.primary : Colors.grey),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
@@ -523,6 +527,10 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade200),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -537,7 +545,7 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
           borderSide: BorderSide(color: AppColors.error, width: 2),
         ),
         filled: true,
-        fillColor: Colors.grey.shade50,
+        fillColor: enabled ? Colors.grey.shade50 : Colors.grey.shade100,
       ),
     );
   }
@@ -1024,7 +1032,6 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error picking image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1093,7 +1100,6 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error removing profile picture: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1268,7 +1274,6 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Error uploading document: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1391,12 +1396,6 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
         throw Exception('User not logged in');
       }
 
-      print('\n🔄 UPDATING PROVIDER PROFILE');
-      print('   UID: $uid');
-      print('   Business Name: ${_businessNameController.text}');
-      print('   Service Type: $_selectedServiceType');
-      print('   City: ${_cityController.text}');
-      print('   Province: $_selectedProvince');
 
       // Call the updateProviderProfile method with all fields
       final success = await authService.updateProviderProfile(
@@ -1425,7 +1424,6 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
 
       if (mounted) {
         if (success) {
-          print('✅ Profile updated successfully');
           
           // Reload the user profile from backend to get latest data
           await authService.loadUserProfile();
@@ -1456,7 +1454,6 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
         }
       }
     } catch (e) {
-      print('❌ Profile update error: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

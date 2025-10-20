@@ -62,6 +62,17 @@ class Query:
                     full_name=user_data['full_name'],
                     phone=user_data['phone'],
                     user_type=user_data['user_type'],
+                    profile_image=user_data.get('profile_image'),
+                    address=user_data.get('address'),
+                    bio=user_data.get('bio'),
+                    gender=user_data.get('gender'),
+                    date_of_birth=user_data.get('date_of_birth'),
+                    service_categories=user_data.get('service_categories'),
+                    category_details=user_data.get('category_details'),
+                    service_requirements=user_data.get('service_requirements'),
+                    primary_purpose=user_data.get('primary_purpose'),
+                    urgency=user_data.get('urgency'),
+                    preferences_notes=user_data.get('preferences_notes'),
                     created_at=user_data['created_at'],
                     updated_at=user_data['updated_at']
                 )

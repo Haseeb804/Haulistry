@@ -135,7 +135,6 @@ class _AddEditVehicleScreenState extends State<AddEditVehicleScreen> {
         String? vehicleImageBase64;
         if (_vehicleImage != null) {
           vehicleImageBase64 = await ImageUtils.convertImageToBase64(_vehicleImage!);
-          print('📸 Vehicle image converted: ${ImageUtils.getBase64FileSizeKB(vehicleImageBase64).toStringAsFixed(2)} KB');
         }
 
         final vehicle = Vehicle(

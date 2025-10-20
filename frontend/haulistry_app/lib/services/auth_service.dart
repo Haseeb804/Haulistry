@@ -49,13 +49,10 @@ class AuthService extends ChangeNotifier {
       final userType = prefs.getString('user_type');
       
       if (token != null && userUid != null) {
-        debugPrint('🔄 Restoring session from stored data...');
         // Load full user profile from backend using the token
         await _loadUserProfile(userUid);
-        debugPrint('✅ Session restored');
       }
     } catch (e) {
-      debugPrint('⚠️ Could not restore session: $e');
     }
   }
 
@@ -74,21 +71,17 @@ class AuthService extends ChangeNotifier {
   /// Sign in with custom token (works for both web and mobile)
   Future<UserCredential> _signInWithCustomToken(String customToken) async {
     try {
-      debugPrint('🔥 Attempting Firebase sign-in...');
       
       // For both web and mobile, we'll try the direct method first
       // This may work on some web configurations and all mobile
       try {
         final credential = await _auth.signInWithCustomToken(customToken);
-        debugPrint('✅ Custom token sign-in successful');
         return credential;
       } catch (customTokenError) {
-        debugPrint('⚠️ Custom token sign-in failed: $customTokenError');
         throw customTokenError;
       }
       
     } catch (e) {
-      debugPrint('❌ Firebase sign-in failed: $e');
       rethrow;
     }
   }
@@ -99,7 +92,6 @@ class AuthService extends ChangeNotifier {
       _userProfile = await _graphql.getUserProfile(uid);
       notifyListeners();
     } catch (e) {
-      debugPrint('Error loading user profile: $e');
     }
   }
 
@@ -118,37 +110,25 @@ class AuthService extends ChangeNotifier {
     required String phone,
   }) async {
     try {
-      debugPrint('\n${'='*60}');
-      debugPrint('🟦 REGISTER SEEKER CALLED (Frontend)');
-      debugPrint('   Email: $email');
-      debugPrint('   Name: $fullName');
-      debugPrint('   Phone: $phone');
-      debugPrint('${'='*60}\n');
       
       _setLoading(true);
       _setError(null);
 
       // Call GraphQL mutation - this creates user in both Firebase and Neo4j
-      debugPrint('📡 Calling GraphQL mutation...');
       final result = await _graphql.registerSeeker(
         email: email,
         password: password,
         fullName: fullName,
         phone: phone,
       );
-      debugPrint('✅ GraphQL response received: $result');
 
       if (!result['success']) {
-        debugPrint('❌ Registration failed: ${result['message']}');
         throw Exception(result['message'] ?? 'Registration failed');
       }
 
-      debugPrint('✅ Backend registration successful');
-      debugPrint('✅ Firebase user created by backend: ${result['user']['uid']}');
       
       // Store user data
       _userProfile = result['user'];
-      debugPrint('✅ User profile stored: $_userProfile');
       
       // Save authentication data
       final prefs = await SharedPreferences.getInstance();
@@ -156,34 +136,25 @@ class AuthService extends ChangeNotifier {
       await prefs.setString('user_uid', result['user']['uid']);
       await prefs.setString('user_email', result['user']['email']);
       await prefs.setString('user_type', result['user']['userType']);
-      debugPrint('✅ Authentication data saved');
       
       // Try Firebase client sign-in with custom token
-      debugPrint('🔥 Attempting Firebase client sign-in...');
       try {
         final credential = await _signInWithCustomToken(result['token']);
-        debugPrint('✅ Firebase client sign-in successful: ${credential.user?.uid}');
         _currentUser = credential.user;
       } catch (firebaseError) {
         // If custom token fails, the user is still authenticated via backend
-        debugPrint('⚠️ Firebase client sign-in unavailable (web limitation)');
-        debugPrint('✅ Using backend authentication instead');
         // User is authenticated with backend token
         _userProfile = result['user'];
         notifyListeners();
       }
 
       _setLoading(false);
-      debugPrint('✅ REGISTRATION COMPLETE\n');
       return true;
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Firebase Auth Exception: ${e.code} - ${e.message}');
       _setError(_handleFirebaseError(e));
       _setLoading(false);
       return false;
     } catch (e) {
-      debugPrint('❌ EXCEPTION: $e');
-      debugPrint('❌ Stack trace: ${StackTrace.current}');
       _setError(e.toString());
       _setLoading(false);
       return false;
@@ -207,27 +178,11 @@ class AuthService extends ChangeNotifier {
     String? description,
   }) async {
     try {
-      debugPrint('\n${'='*60}');
-      debugPrint('🟧 REGISTER PROVIDER CALLED (Frontend)');
-      debugPrint('   Email: $email');
-      debugPrint('   Name: $fullName');
-      debugPrint('   Phone: $phone');
-      debugPrint('   Business Name: $businessName');
-      debugPrint('   Business Type: $businessType');
-      debugPrint('   Service Type: $serviceType');
-      debugPrint('   CNIC: $cnicNumber');
-      debugPrint('   Address: $address');
-      debugPrint('   City: $city');
-      debugPrint('   Province: $province');
-      debugPrint('   Years Experience: $yearsExperience');
-      debugPrint('   Description: $description');
-      debugPrint('${'='*60}\n');
       
       _setLoading(true);
       _setError(null);
 
       // Call GraphQL mutation - this creates user in both Firebase and Neo4j
-      debugPrint('📡 Calling GraphQL mutation...');
       final result = await _graphql.registerProvider(
         email: email,
         password: password,
@@ -243,19 +198,14 @@ class AuthService extends ChangeNotifier {
         yearsExperience: yearsExperience,
         description: description,
       );
-      debugPrint('✅ GraphQL response received: $result');
 
       if (!result['success']) {
-        debugPrint('❌ Registration failed: ${result['message']}');
         throw Exception(result['message'] ?? 'Registration failed');
       }
 
-      debugPrint('✅ Backend registration successful');
-      debugPrint('✅ Firebase user created by backend: ${result['user']['uid']}');
 
       // Store user data
       _userProfile = result['user'];
-      debugPrint('✅ User profile stored: $_userProfile');
       
       // Save authentication data
       final prefs = await SharedPreferences.getInstance();
@@ -263,20 +213,15 @@ class AuthService extends ChangeNotifier {
       await prefs.setString('user_uid', result['user']['uid']);
       await prefs.setString('user_email', result['user']['email']);
       await prefs.setString('user_type', result['user']['userType']);
-      debugPrint('✅ Authentication data saved');
       
       // Try Firebase client sign-in with custom token
-      debugPrint('🔥 Attempting Firebase client sign-in...');
       try {
         final credential = await _signInWithCustomToken(result['token']);
-        debugPrint('✅ Firebase client sign-in successful: ${credential.user?.uid}');
         _currentUser = credential.user;
         notifyListeners();
       } catch (firebaseError) {
         // Custom token sign-in may not work on web due to API key restrictions
         // But the user IS authenticated via backend - set them as authenticated
-        debugPrint('⚠️ Firebase client sign-in unavailable (web limitation)');
-        debugPrint('✅ Using backend authentication - user is authenticated');
         
         // User is authenticated with backend token
         _userProfile = result['user'];
@@ -285,18 +230,12 @@ class AuthService extends ChangeNotifier {
       }
 
       _setLoading(false);
-      debugPrint('✅ REGISTRATION COMPLETE');
-      debugPrint('✅ User authenticated: ${isAuthenticated}');
-      debugPrint('✅ User type: ${_userProfile?['userType']}\n');
       return true;
     } on FirebaseAuthException catch (e) {
-      debugPrint('❌ Firebase Auth Exception: ${e.code} - ${e.message}');
       _setError(_handleFirebaseError(e));
       _setLoading(false);
       return false;
     } catch (e) {
-      debugPrint('❌ EXCEPTION: $e');
-      debugPrint('❌ Stack trace: ${StackTrace.current}');
       _setError(e.toString());
       _setLoading(false);
       return false;
@@ -335,6 +274,12 @@ class AuthService extends ChangeNotifier {
       // Store user data
       _userProfile = result['user'];
       
+      // 🐛 DEBUG: Print what we received from backend
+      
+      // Check if seeker - print preferences
+      if (_userProfile?['userType'] == 'seeker') {
+      }
+      
       // Save custom token if provided
       if (result['token'] != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -358,17 +303,14 @@ class AuthService extends ChangeNotifier {
   Future<bool> reloadUserProfile() async {
     try {
       if (_userProfile == null) {
-        debugPrint('Cannot reload profile: no user profile available');
         return false;
       }
 
       final uid = _userProfile?['uid'];
       if (uid == null) {
-        debugPrint('Cannot reload profile: no UID found');
         return false;
       }
 
-      debugPrint('🔄 Reloading user profile for UID: $uid');
 
       // Call GraphQL to get fresh user data from Neo4j
       final freshProfile = await _graphql.getUserProfile(uid);
@@ -376,15 +318,11 @@ class AuthService extends ChangeNotifier {
       if (freshProfile != null) {
         _userProfile = freshProfile;
         notifyListeners();
-        debugPrint('✅ User profile reloaded successfully');
-        debugPrint('   Profile image: ${freshProfile['profileImage'] != null ? "Present (${(freshProfile['profileImage'] as String).length} chars)" : "null"}');
         return true;
       } else {
-        debugPrint('❌ Failed to reload profile: getUserProfile returned null');
         return false;
       }
     } catch (e) {
-      debugPrint('❌ Error reloading profile: $e');
       return false;
     }
   }
@@ -467,7 +405,6 @@ class AuthService extends ChangeNotifier {
     try {
       return await _currentUser?.getIdToken();
     } catch (e) {
-      debugPrint('Error getting ID token: $e');
       return null;
     }
   }
@@ -531,10 +468,6 @@ class AuthService extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      debugPrint('\n${'='*60}');
-      debugPrint('🔄 UPDATING PROVIDER PROFILE');
-      debugPrint('   UID: $uid');
-      debugPrint('${'='*60}\n');
 
       final result = await _graphql.updateProviderProfile(
         uid: uid,
@@ -560,21 +493,17 @@ class AuthService extends ChangeNotifier {
 
       // Update local user profile
       _userProfile = result['user'];
-      debugPrint('✅ User profile updated locally');
       
       // Save to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final userJson = jsonEncode(_userProfile);
       await prefs.setString('user_profile', userJson);
-      debugPrint('✅ Updated profile saved to storage');
       
       notifyListeners();
       _setLoading(false);
       
-      debugPrint('✅ PROFILE UPDATE COMPLETE\n');
       return true;
     } catch (e) {
-      debugPrint('❌ Profile update error: $e');
       _setError(e.toString());
       _setLoading(false);
       return false;
@@ -602,10 +531,6 @@ class AuthService extends ChangeNotifier {
       _setLoading(true);
       _setError(null);
 
-      debugPrint('\n${'='*60}');
-      debugPrint('🔄 UPDATING SEEKER PROFILE');
-      debugPrint('   UID: $uid');
-      debugPrint('${'='*60}\n');
 
       final result = await _graphql.updateSeekerProfile(
         uid: uid,
@@ -630,26 +555,32 @@ class AuthService extends ChangeNotifier {
 
       // Update local user profile
       _userProfile = result['user'];
-      debugPrint('✅ User profile updated locally');
       
       // Save to SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final userJson = jsonEncode(_userProfile);
       await prefs.setString('user_profile', userJson);
-      debugPrint('✅ Updated profile saved to storage');
       
       notifyListeners();
       _setLoading(false);
       
-      debugPrint('✅ PROFILE UPDATE COMPLETE\n');
       return true;
     } catch (e) {
-      debugPrint('❌ Profile update error: $e');
       _setError(e.toString());
       _setLoading(false);
       return false;
     }
   }
+
+  /// Expose GraphQL service for advanced operations
+  GraphQLService get graphqlService => _graphql;
+
+  /// Update user profile in memory (used when preferences are updated)
+  void updateUserProfile(Map<String, dynamic> updatedProfile) {
+    _userProfile = updatedProfile;
+    notifyListeners();
+  }
 }
+
 
 

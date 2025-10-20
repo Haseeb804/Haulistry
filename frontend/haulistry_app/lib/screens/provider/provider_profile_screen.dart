@@ -25,26 +25,13 @@ class _ProviderProfileScreenState extends State<ProviderProfileScreen> {
     }
 
     // 🐛 DEBUG: Print profile image data
-    print('═══════════════════════════════════');
-    print('📸 PROVIDER PROFILE PICTURE DEBUG');
-    print('═══════════════════════════════════');
-    print('User: ${userProfile['fullName']}');
-    print('Email: ${userProfile['email']}');
-    print('Has profileImage key: ${userProfile.containsKey('profileImage')}');
-    print('ProfileImage value: ${userProfile['profileImage']}');
     if (userProfile['profileImage'] != null && userProfile['profileImage'] != '') {
       final img = userProfile['profileImage'] as String;
-      print('ProfileImage length: ${img.length}');
-      print('ProfileImage prefix (first 60 chars): ${img.substring(0, img.length > 60 ? 60 : img.length)}');
-      print('Starts with "data:image": ${img.startsWith('data:image')}');
       
       // Test decoding
       final decoded = ImageUtils.decodeBase64Image(img);
-      print('Decoded bytes: ${decoded != null ? "${decoded.length} bytes" : "NULL (decode failed)"}');
     } else {
-      print('❌ ProfileImage is NULL or EMPTY');
     }
-    print('═══════════════════════════════════\n');
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,

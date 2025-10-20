@@ -282,6 +282,25 @@ class AuthService:
             if not user_data:
                 raise Exception("User profile not found. Please contact support if this persists.")
             
+            # 🐛 DEBUG: Print user data from Neo4j
+            print(f"\n{'='*60}")
+            print(f"🔍 USER DATA FROM NEO4J (Login)")
+            print(f"   UID: {user_data.get('uid')}")
+            print(f"   Email: {user_data.get('email')}")
+            print(f"   Full Name: {user_data.get('full_name')}")
+            print(f"   User Type Labels: {user_data.get('labels', [])}")
+            
+            # Check if this is a Seeker and print preferences
+            if "Seeker" in user_data.get("labels", []):
+                print(f"\n   📋 SEEKER PREFERENCES:")
+                print(f"   - service_categories: {user_data.get('service_categories', 'None')}")
+                print(f"   - category_details: {user_data.get('category_details', 'None')}")
+                print(f"   - service_requirements: {user_data.get('service_requirements', 'None')}")
+                print(f"   - primary_purpose: {user_data.get('primary_purpose', 'None')}")
+                print(f"   - urgency: {user_data.get('urgency', 'None')}")
+                print(f"   - preferences_notes: {user_data.get('preferences_notes', 'None')}")
+            print(f"{'='*60}\n")
+            
             # Determine user type from database labels
             user_type = None
             if "Seeker" in user_data.get("labels", []):

@@ -1,91 +1,99 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../models/seeker_preferences_model.dart';
+import '../services/auth_service.dart';
 
 class SeekerPreferencesProvider with ChangeNotifier {
   SeekerPreferences _preferences = SeekerPreferences.empty();
   bool _isLoading = false;
   String? _errorMessage;
 
+  SeekerPreferencesProvider();
+
   SeekerPreferences get preferences => _preferences;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  // Local storage key
-  static const String _storageKey = 'seeker_preferences';
-
-  // Load preferences from storage
-  Future<void> loadPreferences(String userId) async {
+  // Load preferences directly from AuthService userProfile (from backend/Neo4j)
+  Future<void> loadPreferences(String userId, {AuthService? authService}) async {
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      final prefs = await SharedPreferences.getInstance();
-      final String? prefsJson = prefs.getString('${_storageKey}_$userId');
 
-      if (prefsJson != null) {
-        final Map<String, dynamic> prefsMap = json.decode(prefsJson);
-        _preferences = SeekerPreferences.fromJson(prefsMap);
+      // Load from AuthService userProfile (from backend)
+      final userProfile = authService?.userProfile;
+      
+      
+      if (userProfile != null) {
+        
+        // Check if backend has preferences
+        if (userProfile['serviceCategories'] != null && 
+            userProfile['serviceCategories'] is String && 
+            (userProfile['serviceCategories'] as String).isNotEmpty &&
+            userProfile['serviceCategories'] != '[]') {
+          
+          
+          // Parse preferences from backend
+          try {
+            final serviceCategories = json.decode(userProfile['serviceCategories'] ?? '[]') as List;
+            final categoryDetails = userProfile['categoryDetails'] != null 
+                ? json.decode(userProfile['categoryDetails']) as Map<String, dynamic>
+                : <String, dynamic>{};
+            final serviceRequirements = userProfile['serviceRequirements'] != null
+                ? json.decode(userProfile['serviceRequirements']) as Map<String, dynamic>
+                : <String, dynamic>{};
+            
+            
+            // Convert to SeekerPreferences model
+            final Map<String, List<String>> categoryDetailsMap = {};
+            categoryDetails.forEach((key, value) {
+              categoryDetailsMap[key] = (value as List).map((e) => e.toString()).toList();
+            });
+            
+            final Map<String, ServiceRequirement> serviceRequirementsMap = {};
+            serviceRequirements.forEach((key, value) {
+              if (value is Map) {
+                serviceRequirementsMap[key] = ServiceRequirement.fromJson(Map<String, dynamic>.from(value));
+              }
+            });
+            
+            _preferences = SeekerPreferences(
+              id: userId,
+              userId: userId,
+              serviceCategories: serviceCategories.map((e) => e.toString()).toList(),
+              categoryDetails: categoryDetailsMap,
+              serviceRequirements: serviceRequirementsMap,
+              primaryPurpose: userProfile['primaryPurpose'] ?? '',
+              urgency: userProfile['urgency'] ?? '',
+              notes: userProfile['preferencesNotes'] ?? '',
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            );
+            
+            
+            _isLoading = false;
+            notifyListeners();
+            return;
+          } catch (parseError) {
+            _errorMessage = 'Failed to parse preferences: $parseError';
+          }
+        } else {
+        }
       } else {
-        _preferences = SeekerPreferences.empty();
       }
 
+      // If we reach here, no preferences were loaded
+      _preferences = SeekerPreferences.empty();
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
       _errorMessage = e.toString();
+      _preferences = SeekerPreferences.empty();
       _isLoading = false;
       notifyListeners();
-    }
-  }
-
-  // Save or update preferences
-  Future<bool> savePreferences({
-    required String userId,
-    required List<String> serviceCategories,
-    required Map<String, List<String>> categoryDetails,
-    required Map<String, ServiceRequirement> serviceRequirements,
-    required String primaryPurpose,
-    required String urgency,
-    String notes = '',
-  }) async {
-    try {
-      _isLoading = true;
-      _errorMessage = null;
-      notifyListeners();
-
-      // Create or update preferences
-      final newPreferences = SeekerPreferences(
-        id: _preferences.id.isEmpty ? DateTime.now().millisecondsSinceEpoch.toString() : _preferences.id,
-        userId: userId,
-        serviceCategories: serviceCategories,
-        categoryDetails: categoryDetails,
-        serviceRequirements: serviceRequirements,
-        primaryPurpose: primaryPurpose,
-        urgency: urgency,
-        notes: notes,
-        createdAt: _preferences.createdAt,
-        updatedAt: DateTime.now(),
-      );
-
-      // Save to local storage
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        '${_storageKey}_$userId',
-        json.encode(newPreferences.toJson()),
-      );
-
-      _preferences = newPreferences;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } catch (e) {
-      _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
     }
   }
 
@@ -102,19 +110,6 @@ class SeekerPreferencesProvider with ChangeNotifier {
   // Get subcategories for a category
   List<String> getSelectedSubcategories(String category) {
     return _preferences.categoryDetails[category] ?? [];
-  }
-
-  // Clear preferences
-  Future<void> clearPreferences(String userId) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('${_storageKey}_$userId');
-      _preferences = SeekerPreferences.empty();
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
-    }
   }
 
   // Get recommended services based on preferences
@@ -135,5 +130,41 @@ class SeekerPreferencesProvider with ChangeNotifier {
   // Get urgency level
   String getUrgency() {
     return _preferences.urgency;
+  }
+
+  /// Clear preferences from both frontend state and backend (Neo4j)
+  Future<void> clearPreferences(String userId, {required AuthService authService}) async {
+    try {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+
+
+      // Call GraphQL service to clear preferences in Neo4j
+      final graphqlService = authService.graphqlService;
+      
+      final result = await graphqlService.clearSeekerPreferences(uid: userId);
+      
+      if (result['success'] == true) {
+        
+        // Update AuthService userProfile with cleared data
+        if (result['user'] != null) {
+          authService.updateUserProfile(result['user']);
+        }
+        
+        // Clear frontend state
+        _preferences = SeekerPreferences.empty();
+        
+        _isLoading = false;
+        notifyListeners();
+      } else {
+        throw Exception(result['message'] ?? 'Failed to clear preferences');
+      }
+    } catch (e) {
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      rethrow;
+    }
   }
 }

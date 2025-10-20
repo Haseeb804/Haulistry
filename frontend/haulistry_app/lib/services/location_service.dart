@@ -61,7 +61,6 @@ class LocationService {
         );
       }
     } catch (e) {
-      print('Error getting address: $e');
     }
 
     return Location(
@@ -92,7 +91,6 @@ class LocationService {
         );
       }
     } catch (e) {
-      print('Error getting address: $e');
     }
 
     return Location(latitude: latitude, longitude: longitude);
@@ -112,7 +110,6 @@ class LocationService {
         );
       }
     } catch (e) {
-      print('Error getting coordinates: $e');
     }
 
     return null;
