@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/auth_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -719,18 +720,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Clear any stored data here (e.g., SharedPreferences, tokens)
-              // For now, just navigate to login
+            onPressed: () async {
               context.pop(); // Close dialog
-              context.go('/login'); // Navigate to login
               
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Logged out successfully'),
-                  backgroundColor: Colors.green,
+              // Show loading
+              showDialog(
+                context: context,
+                barrierDismissible: false,
+                builder: (context) => Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
                 ),
               );
+
+              // Logout
+              final authService = context.read<AuthService>();
+              await authService.logout();
+
+              // Close loading
+              if (mounted) Navigator.of(context).pop();
+
+              // Navigate to login
+              if (mounted) {
+                context.go('/login');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.white),
+                        SizedBox(width: 12),
+                        Text('Logged out successfully'),
+                      ],
+                    ),
+                    backgroundColor: Colors.green,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
             child: Text('Logout'),

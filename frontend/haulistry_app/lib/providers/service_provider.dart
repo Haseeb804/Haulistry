@@ -24,8 +24,10 @@ class ServiceProvider extends ChangeNotifier {
     if (_providerUid == null) {
       _error = 'User not logged in';
       notifyListeners();
+
       return;
     }
+
 
     _isLoading = true;
     _error = null;
@@ -33,13 +35,20 @@ class ServiceProvider extends ChangeNotifier {
 
     try {
       final servicesData = await _graphqlService.getProviderServices(_providerUid!);
+
       
       _services = servicesData.map((data) => Service.fromGraphQL(data)).toList();
+
+      
+      if (_services.isNotEmpty) {
+
+      }
     } catch (e) {
-      _error = 'Failed to load services: $e';
+
     } finally {
       _isLoading = false;
       notifyListeners();
+
     }
   }
 
@@ -56,7 +65,7 @@ class ServiceProvider extends ChangeNotifier {
   }
 
   // Add new service via GraphQL
-  Future<bool> addService(Service service) async {
+  Future<bool> addService(Service service, {String? serviceImages}) async {
     if (_providerUid == null) {
       _error = 'User not logged in';
       notifyListeners();
@@ -76,6 +85,7 @@ class ServiceProvider extends ChangeNotifier {
         description: service.description,
         serviceArea: service.serviceArea,
         minBookingDuration: service.minBookingDuration,
+        serviceImages: serviceImages,  // Added service images parameter
         isActive: service.isActive,
         availableDays: service.availableDays,
         availableHours: service.availableHours,

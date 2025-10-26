@@ -53,7 +53,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     if (!onboardingCompleted) {
       context.go('/onboarding');
     } else if (!isLoggedIn) {
-      context.go('/role-selection');
+      context.go('/signup');
     } else {
       if (userRole == AppConstants.roleSeeker) {
         context.go('/seeker/dashboard');

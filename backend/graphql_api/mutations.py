@@ -24,7 +24,8 @@ from .types import (
     UpdateServiceInput,
     VehicleResponse,
     ServiceResponse,
-    GenericResponse
+    GenericResponse,
+    VehicleOnboardingInput
 )
 from services.auth_service import AuthService
 from pydantic import ValidationError
@@ -378,6 +379,49 @@ class Mutation:
             
             if not updated_user:
                 raise Exception("Failed to update provider profile. User not found.")
+            
+            # Handle vehicles if provided
+            if input.vehicles is not None:
+                import json
+                from repositories.vehicle_repository import VehicleRepository
+                
+                vehicle_repo = VehicleRepository()
+                vehicles_data = json.loads(input.vehicles)
+                
+                print(f"🚗 Processing {len(vehicles_data)} vehicles...")
+                
+                # Get existing vehicles to check for duplicates
+                existing_vehicles = user_repo.get_provider_vehicles(input.uid)
+                existing_registration_numbers = [v.get('registration_number') for v in existing_vehicles]
+                
+                for vehicle_data in vehicles_data:
+                    try:
+                        registration_number = vehicle_data['number']
+                        
+                        # Skip if vehicle with same registration number already exists
+                        if registration_number in existing_registration_numbers:
+                            print(f"   ⏭️  Skipping duplicate vehicle: {vehicle_data['type']} - {registration_number}")
+                            continue
+                        
+                        # Create vehicle in Neo4j
+                        vehicle_repo.create_vehicle(
+                            provider_uid=input.uid,
+                            vehicle_type=vehicle_data['type'],
+                            registration_number=registration_number,
+                            model=vehicle_data['model'],
+                            vehicle_image=vehicle_data['image']
+                        )
+                        print(f"   ✅ Created vehicle: {vehicle_data['type']} - {registration_number}")
+                    except Exception as ve:
+                        print(f"   ⚠️ Failed to create vehicle {vehicle_data.get('number', 'unknown')}: {str(ve)}")
+                
+                # Clean up any duplicate vehicles that might have been created
+                try:
+                    deleted_count = vehicle_repo.remove_duplicate_vehicles(input.uid)
+                    if deleted_count > 0:
+                        print(f"🧹 Cleaned up {deleted_count} duplicate vehicle(s)")
+                except Exception as cleanup_error:
+                    print(f"⚠️  Cleanup warning: {str(cleanup_error)}")
             
             # Check if all 4 required documents are now uploaded
             has_all_docs = all([
@@ -892,6 +936,7 @@ class Mutation:
                 description=input.description,
                 service_area=input.service_area,
                 min_booking_duration=input.min_booking_duration,
+                service_images=input.service_images,  # Added service images
                 is_active=input.is_active,
                 available_days=input.available_days,
                 available_hours=input.available_hours,

@@ -2,6 +2,7 @@ import 'package:graphql_flutter/graphql_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart'; // Import for ValueNotifier
 import 'package:http/http.dart' as http;
+import 'dart:convert'; // Import for jsonEncode
 
 class GraphQLService {
   static final GraphQLService _instance = GraphQLService._internal();
@@ -453,6 +454,7 @@ class GraphQLService {
     String? cnicBackImage,
     String? licenseImage,
     String? licenseNumber,
+    List<Map<String, dynamic>>? vehicles, // Add vehicles parameter
   }) async {
     
     const String mutation = r'''
@@ -511,6 +513,8 @@ class GraphQLService {
     if (cnicBackImage != null) input['cnicBackImage'] = cnicBackImage;
     if (licenseImage != null) input['licenseImage'] = licenseImage;
     if (licenseNumber != null) input['licenseNumber'] = licenseNumber;
+    // Vehicles - convert to JSON string
+    if (vehicles != null) input['vehicles'] = jsonEncode(vehicles);
 
 
     final QueryResult result = await _client.mutate(
@@ -522,9 +526,9 @@ class GraphQLService {
         fetchPolicy: FetchPolicy.networkOnly,
       ),
     ).timeout(
-      const Duration(seconds: 60),
+      const Duration(seconds: 120),
       onTimeout: () {
-        throw Exception('Request timed out. Please check your internet connection and try again.');
+        throw Exception('Request timed out after 120 seconds. The data may have been saved. Please refresh to check.');
       },
     );
 
@@ -902,6 +906,7 @@ class GraphQLService {
     String? description,
     String? serviceArea,
     String? minBookingDuration,
+    String? serviceImages,  // JSON string array of base64 images
     bool isActive = true,
     String? availableDays,
     String? availableHours,
@@ -923,6 +928,7 @@ class GraphQLService {
             pricePerDay
             pricePerService
             description
+            serviceImages
             isActive
             operatorIncluded
             fuelIncluded
@@ -947,6 +953,7 @@ class GraphQLService {
             if (description != null) 'description': description,
             if (serviceArea != null) 'serviceArea': serviceArea,
             if (minBookingDuration != null) 'minBookingDuration': minBookingDuration,
+            if (serviceImages != null) 'serviceImages': serviceImages,
             'isActive': isActive,
             if (availableDays != null) 'availableDays': availableDays,
             if (availableHours != null) 'availableHours': availableHours,
@@ -972,6 +979,7 @@ class GraphQLService {
         vehicleServices(vehicleId: $vehicleId) {
           serviceId
           vehicleId
+          providerUid
           serviceName
           serviceCategory
           pricePerHour
@@ -1017,6 +1025,7 @@ class GraphQLService {
         providerServices(providerUid: $providerUid) {
           serviceId
           vehicleId
+          providerUid
           serviceName
           serviceCategory
           pricePerHour
@@ -1025,6 +1034,7 @@ class GraphQLService {
           description
           serviceArea
           minBookingDuration
+          serviceImages
           isActive
           availableDays
           availableHours
@@ -1147,6 +1157,124 @@ class GraphQLService {
     }
 
     return result.data!['deleteService'];
+  }
+
+  // ==================== SEEKER SERVICE QUERIES (ACTIVE ONLY) ====================
+
+  /// Get all active services (for seekers) with optional filters
+  /// Only returns services where isActive = true
+  Future<List<Map<String, dynamic>>> getActiveServices({
+    String? category,
+    String? serviceArea,
+    double? minRating,
+    int limit = 50,
+  }) async {
+    const String query = r'''
+      query ActiveServices(
+        $category: String,
+        $serviceArea: String,
+        $minRating: Float,
+        $limit: Int!
+      ) {
+        activeServices(
+          category: $category,
+          serviceArea: $serviceArea,
+          minRating: $minRating,
+          limit: $limit
+        ) {
+          serviceId
+          vehicleId
+          providerUid
+          serviceName
+          serviceCategory
+          pricePerHour
+          pricePerDay
+          pricePerService
+          description
+          serviceArea
+          minBookingDuration
+          serviceImages
+          isActive
+          availableDays
+          availableHours
+          operatorIncluded
+          fuelIncluded
+          transportationIncluded
+          totalBookings
+          rating
+          createdAt
+          updatedAt
+        }
+      }
+    ''';
+
+    final result = await _client.query(
+      QueryOptions(
+        document: gql(query),
+        variables: {
+          if (category != null) 'category': category,
+          if (serviceArea != null) 'serviceArea': serviceArea,
+          if (minRating != null) 'minRating': minRating,
+          'limit': limit,
+        },
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    final services = result.data!['activeServices'] as List;
+    return services.map((s) => Map<String, dynamic>.from(s)).toList();
+  }
+
+  /// Get all active services for a specific provider (for seekers)
+  /// Only returns services where isActive = true
+  Future<List<Map<String, dynamic>>> getActiveProviderServices(String providerUid) async {
+    const String query = r'''
+      query ActiveProviderServices($providerUid: String!) {
+        activeProviderServices(providerUid: $providerUid) {
+          serviceId
+          vehicleId
+          providerUid
+          serviceName
+          serviceCategory
+          pricePerHour
+          pricePerDay
+          pricePerService
+          description
+          serviceArea
+          minBookingDuration
+          serviceImages
+          isActive
+          availableDays
+          availableHours
+          operatorIncluded
+          fuelIncluded
+          transportationIncluded
+          totalBookings
+          rating
+          createdAt
+          updatedAt
+        }
+      }
+    ''';
+
+    final result = await _client.query(
+      QueryOptions(
+        document: gql(query),
+        variables: {'providerUid': providerUid},
+        fetchPolicy: FetchPolicy.networkOnly,
+      ),
+    );
+
+    if (result.hasException) {
+      throw Exception(result.exception.toString());
+    }
+
+    final services = result.data!['activeProviderServices'] as List;
+    return services.map((s) => Map<String, dynamic>.from(s)).toList();
   }
 }
 

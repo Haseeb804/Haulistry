@@ -18,9 +18,8 @@ import '../screens/seeker/settings_screen.dart' as seeker_settings;
 import '../screens/seeker/seeker_service_preferences_screen.dart';
 import '../screens/seeker/view_preferences_screen.dart';
 import '../screens/provider/provider_dashboard_screen.dart';
-import '../screens/provider/vehicle_details_screen.dart';
-import '../screens/provider/vehicle_management_screen.dart';
-import '../screens/provider/add_edit_vehicle_screen.dart';
+// import '../screens/provider/vehicle_details_screen.dart';
+// import '../screens/provider/vehicle_management_screen.dart';
 import '../screens/provider/services_management_screen.dart';
 import '../screens/provider/add_edit_service_screen.dart';
 import '../screens/provider/booking_requests_screen.dart';
@@ -30,6 +29,7 @@ import '../screens/provider/reviews_management_screen.dart';
 import '../screens/provider/provider_profile_screen.dart';
 import '../screens/provider/edit_provider_profile_screen.dart';
 import '../screens/provider/provider_settings_screen.dart';
+import '../screens/provider/statistics_screen.dart';
 import '../screens/common/notifications_screen.dart';
 import '../screens/common/messages_screen.dart';
 import '../screens/common/chat_screen.dart';
@@ -66,7 +66,10 @@ class AppRouter {
       GoRoute(
         path: '/role-selection',
         name: 'role-selection',
-        builder: (context, state) => const RoleSelectionScreen(),
+        builder: (context, state) {
+          final userData = state.extra as Map<String, dynamic>?;
+          return RoleSelectionScreen(userData: userData);
+        },
       ),
       GoRoute(
         path: '/login',
@@ -81,6 +84,7 @@ class AppRouter {
           return SignupScreen(role: role);
         },
       ),
+      
       GoRoute(
         path: '/forgot-password',
         name: 'forgot-password',
@@ -162,32 +166,17 @@ class AppRouter {
       ),
       
       // Provider Routes
-      GoRoute(
-        path: '/provider/vehicle-details',
-        name: 'vehicle-details',
-        builder: (context, state) => const VehicleDetailsScreen(),
-      ),
-      GoRoute(
-        path: '/provider/vehicles',
-        name: 'vehicle-management',
-        builder: (context, state) => const VehicleManagementScreen(),
-      ),
-      GoRoute(
-        path: '/provider/add-vehicle',
-        name: 'add-vehicle',
-        builder: (context, state) {
-          final isOnboarding = state.uri.queryParameters['onboarding'] == 'true';
-          return AddEditVehicleScreen(isOnboarding: isOnboarding);
-        },
-      ),
-      GoRoute(
-        path: '/provider/edit-vehicle/:id',
-        name: 'edit-vehicle',
-        builder: (context, state) {
-          final vehicleId = state.pathParameters['id'];
-          return AddEditVehicleScreen(vehicleId: vehicleId);
-        },
-      ),
+      // GoRoute(
+      //   path: '/provider/vehicle-details',
+      //   name: 'vehicle-details',
+      //   builder: (context, state) => const VehicleDetailsScreen(),
+      // ),
+      // GoRoute(
+      //   path: '/provider/vehicles',
+      //   name: 'vehicle-management',
+      //   builder: (context, state) => const VehicleManagementScreen(),
+      // ),
+
       GoRoute(
         path: '/provider/dashboard',
         name: 'provider-dashboard',
@@ -245,6 +234,11 @@ class AppRouter {
         path: '/provider/settings',
         name: 'provider-settings',
         builder: (context, state) => const ProviderSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/provider/statistics',
+        name: 'provider-statistics',
+        builder: (context, state) => const StatisticsScreen(),
       ),
       
       // Common Routes

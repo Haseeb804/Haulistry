@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
-import '../../providers/vehicle_provider.dart';
 import '../../providers/service_provider.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
@@ -25,14 +24,8 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   }
 
   Future<void> _loadData() async {
-    final vehicleProvider = Provider.of<VehicleProvider>(context, listen: false);
     final serviceProvider = Provider.of<ServiceProvider>(context, listen: false);
-    
-    await Future.wait([
-      vehicleProvider.loadVehicles(),
-      serviceProvider.loadServices(),
-    ]);
-    
+    await serviceProvider.loadServices();
     setState(() => _isLoading = false);
   }
 
@@ -190,14 +183,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                     // Performance Overview
                     _buildPerformanceOverview(),
 
-                    SizedBox(height: 24),
-
-                    // My Services
-                    _buildSectionHeader('My Services', '/provider/services'),
-
-                    SizedBox(height: 12),
-
-                    _buildMyServices(),
+                    // My Services - Only show if there are services
+                    if (Provider.of<ServiceProvider>(context).services.isNotEmpty) ...[
+                      SizedBox(height: 24),
+                      _buildSectionHeader('My Services', '/provider/services'),
+                      SizedBox(height: 12),
+                      _buildMyServices(),
+                    ],
 
                     SizedBox(height: 24),
 
@@ -220,26 +212,34 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
 
   Widget _buildStatCard(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: Offset(0, 5),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: Offset(0, 8),
           ),
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 24),
-          SizedBox(height: 8),
+          Container(
+            padding: EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          SizedBox(height: 12),
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
               color: AppColors.textPrimary,
             ),
@@ -247,12 +247,13 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
           SizedBox(height: 4),
           Text(
             title,
-            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
             ),
-            maxLines: 2,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -260,123 +261,91 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   }
 
   Widget _buildQuickActions() {
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: Offset(0, 5),
+    final actions = [
+      {'title': 'Bookings', 'icon': Icons.calendar_today, 'color': Color(0xFF3B82F6), 'route': '/provider/bookings'},
+      {'title': 'Add Service', 'icon': Icons.add_circle, 'color': AppColors.primary, 'route': '/provider/add-service'},
+      {'title': 'Earnings', 'icon': Icons.account_balance_wallet, 'color': Color(0xFF10B981), 'route': '/provider/earnings'},
+      {'title': 'Reviews', 'icon': Icons.star, 'color': Color(0xFFF59E0B), 'route': '/provider/reviews'},
+      {'title': 'Messages', 'icon': Icons.message, 'color': Color(0xFFEF4444), 'route': '/messages'},
+      {'title': 'Statistics', 'icon': Icons.bar_chart, 'color': Color(0xFF8B5CF6), 'route': '/provider/statistics'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Quick Actions',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+        ),
+        SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 12,
+            mainAxisSpacing: 12,
+            childAspectRatio: 1.5,
           ),
-          SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  'Vehicles',
-                  Icons.directions_car,
-                  Colors.purple,
-                  () => context.push('/provider/vehicles'),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  'Bookings',
-                  Icons.calendar_today,
-                  Colors.blue,
-                  () => context.push('/provider/bookings'),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  'Add Service',
-                  Icons.add_circle,
-                  AppColors.primary,
-                  () => context.push('/provider/add-service'),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  'Earnings',
-                  Icons.account_balance_wallet,
-                  Colors.green,
-                  () => context.push('/provider/earnings'),
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _buildActionButton(
-                  'Messages',
-                  Icons.message_outlined,
-                  Colors.orange,
-                  () => context.push('/messages'),
-                ),
-              ),
-              SizedBox(width: 12),
-              Expanded(
-                child: _buildActionButton(
-                  'Reviews',
-                  Icons.star,
-                  Colors.amber,
-                  () => context.push('/provider/reviews'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+          itemCount: actions.length,
+          itemBuilder: (context, index) {
+            final action = actions[index];
+            return _buildActionCard(
+              action['title'] as String,
+              action['icon'] as IconData,
+              action['color'] as Color,
+              () => context.push(action['route'] as String),
+            );
+          },
+        ),
+      ],
     );
   }
 
-  Widget _buildActionButton(String label, IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withOpacity(0.3)),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 32),
-            SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: AppColors.textPrimary,
+  Widget _buildActionCard(String label, IconData icon, Color color, VoidCallback onTap) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 15,
+                offset: Offset(0, 5),
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 28),
+              ),
+              SizedBox(height: 10),
+              Text(
+                label,
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -386,63 +355,68 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     final authService = Provider.of<AuthService>(context, listen: false);
     final userProfile = authService.userProfile;
     
-    return Container(
-      padding: EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 15,
-            offset: Offset(0, 5),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Performance Overview',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Performance Overview',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+        ),
+        SizedBox(height: 16),
+        Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 15,
+                offset: Offset(0, 5),
+              ),
+            ],
           ),
-          SizedBox(height: 20),
-          _buildPerformanceItem(
-            'Overall Rating',
-            '${userProfile?['rating']?.toStringAsFixed(1) ?? '0.0'}',
-            Icons.star,
-            Colors.amber,
-            '0 reviews',
+          child: Column(
+            children: [
+              _buildPerformanceItem(
+                'Overall Rating',
+                '${userProfile?['rating']?.toStringAsFixed(1) ?? '0.0'}',
+                Icons.star,
+                Color(0xFFF59E0B),
+                '0 reviews',
+              ),
+              Divider(height: 32),
+              _buildPerformanceItem(
+                'Completed Bookings',
+                '${userProfile?['totalBookings'] ?? 0}',
+                Icons.check_circle,
+                Color(0xFF10B981),
+                'All time',
+              ),
+              Divider(height: 32),
+              _buildPerformanceItem(
+                'Verification Status',
+                userProfile?['documentsUploaded'] == true ? 'Pending' : 'Not Verified',
+                Icons.verified_user,
+                userProfile?['documentsUploaded'] == true ? Color(0xFFF59E0B) : Colors.grey,
+                userProfile?['documentsUploaded'] == true ? 'Under review' : 'Upload documents',
+              ),
+              Divider(height: 32),
+              _buildPerformanceItem(
+                'Account Status',
+                userProfile?['isVerified'] == true ? 'Verified' : 'Unverified',
+                Icons.check_circle_outline,
+                userProfile?['isVerified'] == true ? Color(0xFF10B981) : Colors.grey,
+                'Provider account',
+              ),
+            ],
           ),
-          SizedBox(height: 16),
-          _buildPerformanceItem(
-            'Completed Bookings',
-            '${userProfile?['totalBookings'] ?? 0}',
-            Icons.check_circle,
-            Colors.green,
-            'All time',
-          ),
-          SizedBox(height: 16),
-          _buildPerformanceItem(
-            'Verification Status',
-            userProfile?['documentsUploaded'] == true ? 'Pending' : 'Not Verified',
-            Icons.verified_user,
-            userProfile?['documentsUploaded'] == true ? Colors.orange : Colors.grey,
-            userProfile?['documentsUploaded'] == true ? 'Under review' : 'Upload documents',
-          ),
-          SizedBox(height: 16),
-          _buildPerformanceItem(
-            'Account Status',
-            userProfile?['isVerified'] == true ? 'Verified' : 'Unverified',
-            Icons.check_circle_outline,
-            userProfile?['isVerified'] == true ? Colors.green : Colors.grey,
-            'Provider account',
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -450,12 +424,19 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     return Row(
       children: [
         Container(
-          padding: EdgeInsets.all(12),
+          padding: EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withOpacity(0.15),
+                color.withOpacity(0.05),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
           ),
-          child: Icon(icon, color: color, size: 24),
+          child: Icon(icon, color: color, size: 26),
         ),
         SizedBox(width: 16),
         Expanded(
@@ -465,15 +446,16 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
-              SizedBox(height: 4),
+              SizedBox(height: 6),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 18,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textPrimary,
                 ),
@@ -481,11 +463,19 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
             ],
           ),
         ),
-        Text(
-          subtitle,
-          style: TextStyle(
-            fontSize: 12,
-            color: AppColors.textSecondary,
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -499,13 +489,24 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
         Text(
           title,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
           ),
         ),
-        TextButton(
+        TextButton.icon(
           onPressed: () => context.push(route),
-          child: Text('View All'),
+          icon: Text(
+            'View All',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          label: Icon(Icons.arrow_forward_ios, size: 14),
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.primary,
+          ),
         ),
       ],
     );
@@ -516,97 +517,136 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
     final services = serviceProvider.services;
     
     if (services.isEmpty) {
-      return Container(
-        padding: EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          children: [
-            Icon(Icons.business_center_outlined, size: 64, color: Colors.grey.shade300),
-            SizedBox(height: 16),
-            Text(
-              'No Services Added Yet',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Add your first service to start receiving bookings',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade500),
-            ),
-            SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/provider/services/add'),
-              icon: Icon(Icons.add),
-              label: Text('Add Service'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
+      return SizedBox.shrink(); // Return empty widget if no services
     }
     
     return Column(
       children: services.take(3).map((service) {
         return Container(
           margin: EdgeInsets.only(bottom: 12),
-          padding: EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: Offset(0, 2),
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 15,
+                offset: Offset(0, 4),
               ),
             ],
           ),
-          child: Row(
-            children: [
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  Icons.construction,
-                  color: AppColors.primary,
-                  size: 28,
-                ),
-              ),
-              SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // Navigate to service details
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Row(
                   children: [
-                    Text(
-                      service.serviceName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Container(
+                      padding: EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.primary.withOpacity(0.15),
+                            AppColors.primary.withOpacity(0.05),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Icon(
+                        Icons.construction,
+                        color: AppColors.primary,
+                        size: 28,
                       ),
                     ),
-                    SizedBox(height: 4),
-                    Row(
+                    SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            service.serviceName,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.star, size: 16, color: Color(0xFFF59E0B)),
+                              SizedBox(width: 4),
+                              Text(
+                                '${service.rating?.toStringAsFixed(1) ?? '0.0'}',
+                                style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Container(
+                                width: 4,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: AppColors.textSecondary,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              SizedBox(width: 8),
+                              Text(
+                                '${service.totalBookings} bookings',
+                                style: TextStyle(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Icon(Icons.star, size: 14, color: Colors.amber),
-                        SizedBox(width: 4),
                         Text(
-                          '${service.rating?.toStringAsFixed(1) ?? '0.0'} • ${service.totalBookings} bookings',
+                          'Rs ${service.pricePerHour?.toStringAsFixed(0) ?? '0'}',
                           style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                        Text(
+                          '/hour',
+                          style: TextStyle(
+                            fontSize: 11,
                             color: AppColors.textSecondary,
-                            fontSize: 12,
+                          ),
+                        ),
+                        SizedBox(height: 6),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: service.isActive
+                                ? Color(0xFF10B981).withOpacity(0.1)
+                                : Colors.grey.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            service.isActive ? 'Active' : 'Inactive',
+                            style: TextStyle(
+                              color: service.isActive ? Color(0xFF10B981) : Colors.grey,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ],
@@ -614,38 +654,7 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
                   ],
                 ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Rs ${service.pricePerHour?.toStringAsFixed(0) ?? '0'}/hr',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: service.isActive
-                          ? Colors.green.withOpacity(0.1)
-                          : Colors.grey.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      service.isActive ? 'Active' : 'Inactive',
-                      style: TextStyle(
-                        color: service.isActive ? Colors.green : Colors.grey,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         );
       }).toList(),
@@ -655,28 +664,43 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   Widget _buildRecentBookings() {
     // For now, show empty state since we don't have bookings yet
     return Container(
-      padding: EdgeInsets.all(32),
+      padding: EdgeInsets.all(40),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.shade200),
       ),
       child: Column(
         children: [
-          Icon(Icons.calendar_today_outlined, size: 64, color: Colors.grey.shade300),
-          SizedBox(height: 16),
+          Container(
+            padding: EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Color(0xFF3B82F6).withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.calendar_today_outlined,
+              size: 48,
+              color: Color(0xFF3B82F6),
+            ),
+          ),
+          SizedBox(height: 20),
           Text(
             'No Bookings Yet',
             style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
             ),
           ),
           SizedBox(height: 8),
           Text(
             'Your booking requests will appear here',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey.shade500),
+            style: TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 14,
+            ),
           ),
         ],
       ),

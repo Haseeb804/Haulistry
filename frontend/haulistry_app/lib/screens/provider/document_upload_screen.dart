@@ -19,11 +19,19 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   final ImagePicker _imagePicker = ImagePicker();
   final TextEditingController _cnicController = TextEditingController();
   final TextEditingController _licenseController = TextEditingController();
+  final TextEditingController _vehicleNumberController = TextEditingController();
+  final TextEditingController _vehicleModelController = TextEditingController();
   
   XFile? _profileImage;
   XFile? _cnicFrontImage;
   XFile? _cnicBackImage;
   XFile? _licenseImage;
+  
+  // Vehicle data
+  List<Map<String, dynamic>> _vehicles = [];
+  XFile? _currentVehicleImage;
+  String _currentVehicleType = 'Harvester';
+  final List<String> _vehicleTypes = ['Harvester', 'Tractor', 'Crane', 'Loader Rickshaw'];
   
   bool _isUploading = false;
   int _currentStep = 0;
@@ -32,6 +40,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   void dispose() {
     _cnicController.dispose();
     _licenseController.dispose();
+    _vehicleNumberController.dispose();
+    _vehicleModelController.dispose();
     super.dispose();
   }
 
@@ -79,7 +89,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         children: [
           // Progress Indicator
           Row(
-            children: List.generate(4, (index) {
+            children: List.generate(5, (index) {
               final isCompleted = index < _currentStep;
               final isCurrent = index == _currentStep;
               return Expanded(
@@ -98,7 +108,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
           ),
           SizedBox(height: 16),
           Text(
-            'Step ${_currentStep + 1} of 4',
+            'Step ${_currentStep + 1} of 5',
             style: TextStyle(
               color: Colors.white.withOpacity(0.9),
               fontSize: 14,
@@ -128,6 +138,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         return 'CNIC Back';
       case 3:
         return 'Driving License';
+      case 4:
+        return 'Vehicle Details';
       default:
         return '';
     }
@@ -143,6 +155,8 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         return _buildCNICBackStep();
       case 3:
         return _buildLicenseStep();
+      case 4:
+        return _buildVehicleStep();
       default:
         return SizedBox();
     }
@@ -389,6 +403,180 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     );
   }
 
+  Widget _buildVehicleStep() {
+    return Column(
+      children: [
+        Icon(
+          Icons.directions_car,
+          size: 80,
+          color: AppColors.primary.withOpacity(0.5),
+        ),
+        SizedBox(height: 24),
+        Text(
+          'Vehicle Details',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        SizedBox(height: 12),
+        Text(
+          'Add your vehicle information',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 14,
+            color: Colors.grey.shade600,
+          ),
+        ),
+        SizedBox(height: 32),
+        
+        // Vehicle Type Dropdown
+        DropdownButtonFormField<String>(
+          value: _currentVehicleType,
+          decoration: InputDecoration(
+            labelText: 'Vehicle Type',
+            prefixIcon: Icon(Icons.category, color: AppColors.primary),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+          items: _vehicleTypes.map((String type) {
+            return DropdownMenuItem<String>(
+              value: type,
+              child: Text(type),
+            );
+          }).toList(),
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              setState(() {
+                _currentVehicleType = newValue;
+              });
+            }
+          },
+        ),
+        SizedBox(height: 16),
+        
+        // Vehicle Number Input
+        TextField(
+          controller: _vehicleNumberController,
+          keyboardType: TextInputType.text,
+          textCapitalization: TextCapitalization.characters,
+          maxLength: 20,
+          decoration: InputDecoration(
+            labelText: 'Vehicle Number',
+            hintText: 'ABC-1234',
+            prefixIcon: Icon(Icons.pin, color: AppColors.primary),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+        SizedBox(height: 16),
+        
+        // Vehicle Model Input
+        TextField(
+          controller: _vehicleModelController,
+          keyboardType: TextInputType.text,
+          decoration: InputDecoration(
+            labelText: 'Vehicle Model',
+            hintText: 'e.g., Massey Ferguson 260',
+            prefixIcon: Icon(Icons.info_outline, color: AppColors.primary),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.grey.shade300),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: AppColors.primary, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+        SizedBox(height: 24),
+        
+        // Vehicle Image Upload
+        _buildImageUploadCard(
+          title: 'Vehicle Photo',
+          subtitle: 'Clear photo of the vehicle',
+          image: _currentVehicleImage,
+          icon: Icons.directions_car,
+          color: AppColors.primary,
+          onTap: () => _pickImage(4),
+        ),
+        
+        // Show added vehicles
+        if (_vehicles.isNotEmpty) ...[
+          SizedBox(height: 32),
+          Text(
+            'Added Vehicles (${_vehicles.length})',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          SizedBox(height: 16),
+          ..._vehicles.asMap().entries.map((entry) {
+            final index = entry.key;
+            final vehicle = entry.value;
+            return Card(
+              margin: EdgeInsets.only(bottom: 12),
+              elevation: 2,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ListTile(
+                leading: Icon(Icons.directions_car, color: AppColors.primary),
+                title: Text('${vehicle['type']} - ${vehicle['number']}'),
+                subtitle: Text(vehicle['model']),
+                trailing: IconButton(
+                  icon: Icon(Icons.delete, color: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      _vehicles.removeAt(index);
+                    });
+                  },
+                ),
+              ),
+            );
+          }).toList(),
+        ],
+        
+        SizedBox(height: 24),
+        _buildRequirements([
+          'Select vehicle type',
+          'Enter valid vehicle number',
+          'Provide vehicle model',
+          'Upload clear vehicle photo',
+          'You can add multiple vehicles',
+        ]),
+      ],
+    );
+  }
+
   // Helper method to display XFile images on both web and mobile
   Widget _buildXFileImage(XFile image, {
     double? width,
@@ -613,13 +801,108 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
   }
 
   Widget _buildNavigationButtons() {
+    // Special handling for vehicle step (step 4)
+    if (_currentStep == 4) {
+      return Column(
+        children: [
+          // Add Vehicle button (only if current vehicle form is complete)
+          if (_canAddCurrentVehicle())
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _addVehicle,
+                label: Text(
+                  'Add Vehicle',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+            ),
+          
+          // Submit button (only if at least one vehicle is added)
+          if (_vehicles.isNotEmpty) ...[
+            if (_canAddCurrentVehicle()) SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isUploading ? null : _submitDocuments,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  padding: EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: _isUploading
+                    ? SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        'Complete Registration',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+              ),
+            ),
+          ],
+          
+          SizedBox(height: 12),
+          
+          // Back button
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: _previousStep,
+              child: Text('Back'),
+            ),
+          ),
+          
+          // Warning message
+          if (_vehicles.isEmpty && !_canAddCurrentVehicle())
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Colors.orange),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Please fill in vehicle details and upload image to add a vehicle',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.orange.shade900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+    
+    // Regular navigation for other steps
     return Column(
       children: [
         if (_hasCurrentImage())
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _currentStep < 3 ? _nextStep : _submitDocuments,
+              onPressed: _currentStep < 4 ? _nextStep : null,
               style: ElevatedButton.styleFrom(
                 padding: EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -627,7 +910,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                 ),
               ),
               child: Text(
-                _currentStep < 3 ? 'Continue' : 'Submit & Continue',
+                'Continue',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -683,9 +966,18 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         return _cnicBackImage != null;
       case 3:
         return _licenseImage != null && _licenseController.text.isNotEmpty;
+      case 4:
+        // For vehicle step, allow proceeding if at least one vehicle is added
+        return _vehicles.isNotEmpty;
       default:
         return false;
     }
+  }
+
+  bool _canAddCurrentVehicle() {
+    return _currentVehicleImage != null &&
+           _vehicleNumberController.text.isNotEmpty &&
+           _vehicleModelController.text.isNotEmpty;
   }
 
   Future<void> _pickImage(int step) async {
@@ -712,6 +1004,9 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
             case 3:
               _licenseImage = image;
               break;
+            case 4:
+              _currentVehicleImage = image;
+              break;
           }
         });
       }
@@ -736,6 +1031,42 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     });
   }
 
+  Future<void> _addVehicle() async {
+    if (!_canAddCurrentVehicle()) return;
+
+    try {
+      // Convert vehicle image to Base64
+      final base64Image = await ImageUtils.convertImageToBase64(_currentVehicleImage!);
+
+      // Add vehicle to list
+      setState(() {
+        _vehicles.add({
+          'type': _currentVehicleType,
+          'number': _vehicleNumberController.text.trim(),
+          'model': _vehicleModelController.text.trim(),
+          'image': base64Image,
+        });
+        
+        // Clear form for next vehicle
+        _currentVehicleImage = null;
+        _vehicleNumberController.clear();
+        _vehicleModelController.clear();
+        _currentVehicleType = 'Harvester'; // Reset to default
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Vehicle added successfully! You can add another or complete registration.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error adding vehicle: $e')),
+      );
+    }
+  }
+
   Future<void> _submitDocuments() async {
     if (!_hasCurrentImage()) return;
 
@@ -750,6 +1081,14 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
     if (_licenseController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Please enter License number')),
+      );
+      return;
+    }
+
+    // Ensure at least one vehicle is added
+    if (_vehicles.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please add at least one vehicle')),
       );
       return;
     }
@@ -782,7 +1121,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         throw Exception('User not logged in');
       }
       
-      // Upload documents via AuthService (handles profile update automatically)
+      // Upload documents and vehicles via AuthService
       final success = await authService.updateProviderProfile(
         uid: uid,
         profileImage: profileBase64,
@@ -791,6 +1130,7 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
         licenseImage: licenseBase64,
         cnicNumber: _cnicController.text,
         licenseNumber: _licenseController.text,
+        vehicles: _vehicles, // Pass vehicles data
       );
 
       if (!success) {
@@ -817,14 +1157,14 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                   child: Icon(Icons.check_circle, color: Colors.green, size: 60),
                 ),
                 SizedBox(height: 16),
-                Text('Documents Uploaded!'),
+                Text('Registration Complete!'),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'Your documents have been submitted successfully.',
+                  'Your documents and vehicles have been submitted successfully.',
                   textAlign: TextAlign.center,
                 ),
                 SizedBox(height: 16),
@@ -861,12 +1201,25 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
                           ),
                         ],
                       ),
+                      SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(Icons.directions_car, size: 16, color: Colors.blue),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Vehicles: ${_vehicles.length}',
+                              style: TextStyle(fontSize: 12),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'We\'ll verify them within 24-48 hours.',
+                  'We\'ll verify your details within 24-48 hours.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                 ),
@@ -894,13 +1247,62 @@ class _DocumentUploadScreenState extends State<DocumentUploadScreen> {
       
       
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to upload documents: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
-          ),
-        );
+        // Check if it's a timeout error
+        final isTimeout = e.toString().contains('timed out') || e.toString().contains('timeout');
+        
+        if (isTimeout) {
+          // Show dialog suggesting to check if data was saved
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              title: Row(
+                children: [
+                  Icon(Icons.warning, color: Colors.orange),
+                  SizedBox(width: 12),
+                  Expanded(child: Text('Request Timeout')),
+                ],
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'The request took too long, but your data may have been saved successfully.',
+                    textAlign: TextAlign.center,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'Please check your dashboard. If your information is not there, you may need to try again.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+              actions: [
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.go('/provider/dashboard');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: Size(double.infinity, 45),
+                    backgroundColor: AppColors.primary,
+                  ),
+                  child: Text('Go to Dashboard', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to upload documents: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
       }
     }
   }

@@ -463,6 +463,7 @@ class AuthService extends ChangeNotifier {
     String? cnicBackImage,
     String? licenseImage,
     String? licenseNumber,
+    List<Map<String, dynamic>>? vehicles, // Add vehicles parameter
   }) async {
     try {
       _setLoading(true);
@@ -485,6 +486,7 @@ class AuthService extends ChangeNotifier {
         cnicBackImage: cnicBackImage,
         licenseImage: licenseImage,
         licenseNumber: licenseNumber,
+        vehicles: vehicles, // Pass vehicles to GraphQL
       );
 
       if (!result['success']) {
@@ -579,6 +581,16 @@ class AuthService extends ChangeNotifier {
   void updateUserProfile(Map<String, dynamic> updatedProfile) {
     _userProfile = updatedProfile;
     notifyListeners();
+  }
+
+  /// Get provider's vehicles
+  Future<List<Map<String, dynamic>>> getProviderVehicles(String uid) async {
+    try {
+      return await _graphql.getProviderVehicles(uid);
+    } catch (e) {
+      _setError(e.toString());
+      return [];
+    }
   }
 }
 

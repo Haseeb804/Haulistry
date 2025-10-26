@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../services/auth_service.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_constants.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
-  const RoleSelectionScreen({super.key});
+  final Map<String, dynamic>? userData;
+  
+  const RoleSelectionScreen({super.key, this.userData});
 
   @override
   State<RoleSelectionScreen> createState() => _RoleSelectionScreenState();
@@ -12,6 +16,7 @@ class RoleSelectionScreen extends StatefulWidget {
 
 class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   String? _selectedRole;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -70,26 +75,141 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _selectedRole != null
-                        ? () => context.push('/signup?role=$_selectedRole')
+                    onPressed: _selectedRole != null && !_isLoading
+                        ? _handleContinue
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       disabledBackgroundColor: AppColors.border,
                     ),
-                    child: const Text(
-                      'Continue',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            widget.userData != null ? 'Create Account' : 'Continue',
+                            style: const TextStyle(fontSize: 18),
+                          ),
                   ),
                 ),
                 const SizedBox(height: 20),
+                
+                // Login Link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Already have an account? ',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () => context.push('/login'),
+                      child: Text(
+                        'Log In',
+                        style: TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _handleContinue() async {
+    if (_selectedRole == null) return;
+
+    // If userData is provided (coming from signup), create the account
+    if (widget.userData != null) {
+      setState(() => _isLoading = true);
+
+      try {
+        final authService = Provider.of<AuthService>(context, listen: false);
+        bool success = false;
+
+        if (_selectedRole == AppConstants.roleSeeker) {
+          // Register as Seeker
+          success = await authService.registerSeeker(
+            email: widget.userData!['email'],
+            password: widget.userData!['password'],
+            fullName: widget.userData!['fullName'],
+            phone: widget.userData!['phone'],
+          );
+        } else if (_selectedRole == AppConstants.roleProvider) {
+          // Register as Provider
+          success = await authService.registerProvider(
+            email: widget.userData!['email'],
+            password: widget.userData!['password'],
+            fullName: widget.userData!['fullName'],
+            phone: widget.userData!['phone'],
+          );
+        }
+
+        if (success && mounted) {
+          // Navigate to appropriate dashboard
+          if (_selectedRole == AppConstants.roleSeeker) {
+            context.go('/seeker/dashboard');
+          } else {
+            // Provider should upload documents first
+            context.go('/provider/document-upload');
+          }
+        } else if (!success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(authService.errorMessage ?? 'Registration failed'),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.white),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Error: ${e.toString()}')),
+                ],
+              ),
+              backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    } else {
+      // No userData - this is initial role selection, navigate to signup with role
+      context.push('/signup?role=$_selectedRole');
+    }
   }
 
   Widget _buildRoleCard({

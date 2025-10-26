@@ -1231,6 +1231,118 @@ class UserRepository:
                 return service_data
             return None
     
+    # ==================== SEEKER-FACING SERVICE QUERIES ====================
+    
+    def get_active_services(
+        self, 
+        category: Optional[str] = None, 
+        service_area: Optional[str] = None,
+        min_rating: Optional[float] = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all active services (for seekers) with optional filters
+        
+        Args:
+            category: Filter by service category
+            service_area: Filter by service area
+            min_rating: Minimum rating filter
+            limit: Maximum number of results
+        
+        Returns:
+            List of active service data dictionaries
+        """
+        with self.driver.session() as session:
+            # Build query with filters
+            where_clauses = ["s.is_active = true"]
+            params = {"limit": limit}
+            
+            if category:
+                where_clauses.append("s.service_category = $category")
+                params["category"] = category
+            
+            if service_area:
+                where_clauses.append("s.service_area = $service_area")
+                params["service_area"] = service_area
+            
+            if min_rating is not None:
+                where_clauses.append("s.rating >= $min_rating")
+                params["min_rating"] = min_rating
+            
+            where_clause = " AND ".join(where_clauses)
+            
+            query = f"""
+            MATCH (s:Service)
+            WHERE {where_clause}
+            RETURN s
+            ORDER BY s.rating DESC, s.created_at DESC
+            LIMIT $limit
+            """
+            
+            result = session.run(query, params)
+            services = []
+            
+            for record in result:
+                service_data = dict(record["s"])
+                # Convert datetime
+                if service_data.get('created_at'):
+                    if hasattr(service_data['created_at'], 'iso_format'):
+                        service_data['created_at'] = service_data['created_at'].iso_format()
+                    elif hasattr(service_data['created_at'], 'isoformat'):
+                        service_data['created_at'] = service_data['created_at'].isoformat()
+                        
+                if service_data.get('updated_at'):
+                    if hasattr(service_data['updated_at'], 'iso_format'):
+                        service_data['updated_at'] = service_data['updated_at'].iso_format()
+                    elif hasattr(service_data['updated_at'], 'isoformat'):
+                        service_data['updated_at'] = service_data['updated_at'].isoformat()
+                        
+                services.append(service_data)
+            
+            print(f"📋 Retrieved {len(services)} active services (seeker view)")
+            return services
+    
+    def get_active_services_by_provider(self, provider_uid: str) -> List[Dict[str, Any]]:
+        """
+        Get all active services for a specific provider (for seekers)
+        
+        Args:
+            provider_uid: Provider Firebase UID
+        
+        Returns:
+            List of active service data dictionaries
+        """
+        with self.driver.session() as session:
+            query = """
+            MATCH (p:Provider {uid: $provider_uid})-[:OFFERS]->(s:Service)
+            WHERE s.is_active = true
+            RETURN s
+            ORDER BY s.rating DESC, s.created_at DESC
+            """
+            
+            result = session.run(query, provider_uid=provider_uid)
+            services = []
+            
+            for record in result:
+                service_data = dict(record["s"])
+                # Convert datetime
+                if service_data.get('created_at'):
+                    if hasattr(service_data['created_at'], 'iso_format'):
+                        service_data['created_at'] = service_data['created_at'].iso_format()
+                    elif hasattr(service_data['created_at'], 'isoformat'):
+                        service_data['created_at'] = service_data['created_at'].isoformat()
+                        
+                if service_data.get('updated_at'):
+                    if hasattr(service_data['updated_at'], 'iso_format'):
+                        service_data['updated_at'] = service_data['updated_at'].iso_format()
+                    elif hasattr(service_data['updated_at'], 'isoformat'):
+                        service_data['updated_at'] = service_data['updated_at'].isoformat()
+                        
+                services.append(service_data)
+            
+            print(f"📋 Retrieved {len(services)} active services for provider {provider_uid} (seeker view)")
+            return services
+    
     def update_service(self, service_id: str, update_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
         Update service properties

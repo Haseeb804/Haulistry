@@ -8,7 +8,7 @@ import '../../utils/app_constants.dart';
 class SignupScreen extends StatefulWidget {
   final String role;
   
-  const SignupScreen({super.key, required this.role});
+  const SignupScreen({super.key, this.role = ''});
 
   @override
   State<SignupScreen> createState() => _SignupScreenState();
@@ -71,72 +71,16 @@ class _SignupScreenState extends State<SignupScreen> with SingleTickerProviderSt
     }
 
     if (_formKey.currentState!.validate()) {
-      final authService = context.read<AuthService>();
-      
-      bool success = false;
-      
-      // Call appropriate registration based on role
-      if (widget.role == AppConstants.roleSeeker) {
-        success = await authService.registerSeeker(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          fullName: _nameController.text.trim(),
-          phone: _phoneController.text.trim(),
-        );
-      } else {
-        success = await authService.registerProvider(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-          fullName: _nameController.text.trim(),
-          phone: _phoneController.text.trim(),
-          // Business fields are optional - will be filled later
-        );
-      }
-
-      if (success && mounted) {
-        // Show success message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 12),
-                Text('Account created successfully!'),
-              ],
-            ),
-            backgroundColor: Colors.green.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-        
-        // Navigate to appropriate screen
-        if (widget.role == AppConstants.roleSeeker) {
-          // Show optional setup dialog for seeker
-          _showOptionalSetupDialog(context);
-        } else {
-          // For provider, show provider setup dialog
-          _showProviderSetupDialog(context);
-        }
-      } else if (mounted) {
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(authService.errorMessage ?? 'Signup failed. Please try again.'),
-                ),
-              ],
-            ),
-            backgroundColor: Colors.red.shade600,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          ),
-        );
-      }
+      // Navigate to role selection with user data
+      context.push(
+        '/role-selection',
+        extra: {
+          'email': _emailController.text.trim(),
+          'password': _passwordController.text,
+          'fullName': _nameController.text.trim(),
+          'phone': _phoneController.text.trim(),
+        },
+      );
     }
   }
 

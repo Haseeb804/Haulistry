@@ -398,6 +398,8 @@ class ServiceNode:
         description: Optional[str] = None,
         service_area: Optional[str] = None,  # Cities/regions served
         min_booking_duration: Optional[str] = None,  # e.g., "4 hours", "1 day"
+        # Images
+        service_images: Optional[str] = None,  # JSON string array of base64 images
         # Availability
         is_active: bool = True,
         available_days: Optional[str] = None,  # JSON array of days
@@ -426,6 +428,8 @@ class ServiceNode:
         self.description = description
         self.service_area = service_area
         self.min_booking_duration = min_booking_duration
+        # Images
+        self.service_images = service_images
         # Availability
         self.is_active = is_active
         self.available_days = available_days
@@ -457,6 +461,8 @@ class ServiceNode:
             "description": self.description,
             "service_area": self.service_area,
             "min_booking_duration": self.min_booking_duration,
+            # Images
+            "service_images": self.service_images,
             # Availability
             "is_active": self.is_active,
             "available_days": self.available_days,
@@ -490,6 +496,8 @@ class ServiceNode:
             description=data.get("description"),
             service_area=data.get("service_area"),
             min_booking_duration=data.get("min_booking_duration"),
+            # Images
+            service_images=data.get("service_images"),
             # Availability
             is_active=data.get("is_active", True),
             available_days=data.get("available_days"),

@@ -451,4 +451,88 @@ class Query:
         except Exception as e:
             print(f"❌ Error fetching service: {str(e)}\n")
             raise Exception(f"Failed to fetch service: {str(e)}")
+    
+    # ==================== SEEKER SERVICE QUERIES (ACTIVE ONLY) ====================
+    
+    @strawberry.field
+    async def active_services(
+        self,
+        category: Optional[str] = None,
+        service_area: Optional[str] = None,
+        min_rating: Optional[float] = None,
+        limit: int = 50
+    ) -> List['Service']:
+        """
+        Get all active services (for seekers) with optional filters
+        Only returns services where isActive = true
+        
+        Args:
+            category: Filter by service category
+            service_area: Filter by service area
+            min_rating: Minimum rating filter
+            limit: Maximum number of results (default: 50)
+            
+        Returns:
+            List of active Service objects
+        """
+        print(f"\n{'='*60}")
+        print(f"🔎 ACTIVE_SERVICES QUERY (SEEKER) CALLED")
+        print(f"   Category: {category}")
+        print(f"   Service Area: {service_area}")
+        print(f"   Min Rating: {min_rating}")
+        print(f"   Limit: {limit}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Service
+            
+            user_repo = UserRepository()
+            services = user_repo.get_active_services(
+                category=category,
+                service_area=service_area,
+                min_rating=min_rating,
+                limit=limit
+            )
+            
+            print(f"✅ Found {len(services)} active services\n")
+            
+            return [Service(**service) for service in services]
+            
+        except Exception as e:
+            print(f"❌ Error fetching active services: {str(e)}\n")
+            raise Exception(f"Failed to fetch active services: {str(e)}")
+    
+    @strawberry.field
+    async def active_provider_services(self, provider_uid: str) -> List['Service']:
+        """
+        Get all active services for a specific provider (for seekers)
+        Only returns services where isActive = true
+        
+        Args:
+            provider_uid: The provider's UID
+            
+        Returns:
+            List of active Service objects
+        """
+        print(f"\n{'='*60}")
+        print(f"🔎 ACTIVE_PROVIDER_SERVICES QUERY (SEEKER) CALLED")
+        print(f"   Provider UID: {provider_uid}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Service
+            
+            user_repo = UserRepository()
+            services = user_repo.get_active_services_by_provider(provider_uid)
+            
+            print(f"✅ Found {len(services)} active services\n")
+            
+            return [Service(**service) for service in services]
+            
+        except Exception as e:
+            print(f"❌ Error fetching active provider services: {str(e)}\n")
+            raise Exception(f"Failed to fetch active provider services: {str(e)}")
+
 

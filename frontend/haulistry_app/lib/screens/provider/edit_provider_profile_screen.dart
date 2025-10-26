@@ -41,6 +41,20 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
   bool _isUploadingDocument = false;
   String? _currentUploadingDocument; // Track which document is being uploaded
 
+  // Vehicle management
+  List<Map<String, dynamic>> _vehicles = [];
+  bool _isLoadingVehicles = false;
+  
+  // Vehicle form controllers for adding/editing
+  final TextEditingController _vehicleNumberController = TextEditingController();
+  final TextEditingController _vehicleModelController = TextEditingController();
+  String _selectedVehicleType = 'Harvester';
+  XFile? _vehicleImage;
+  bool _isAddingVehicle = false;
+  String? _editingVehicleId; // Track which vehicle is being edited
+  
+  final List<String> _vehicleTypes = ['Harvester', 'Tractor', 'Crane', 'Loader Rickshaw'];
+
   @override
   void initState() {
     super.initState();
@@ -70,6 +84,42 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     
     _selectedProvince = userProfile?['province'];
     _selectedServiceType = userProfile?['serviceType'];
+    
+    // Load vehicles
+    _loadVehicles();
+  }
+  
+  Future<void> _loadVehicles() async {
+    setState(() => _isLoadingVehicles = true);
+    
+    try {
+      final authService = Provider.of<AuthService>(context, listen: false);
+      final uid = authService.userProfile?['uid'];
+      
+      
+      
+      if (uid != null) {
+        final vehicles = await authService.getProviderVehicles(uid);
+
+        
+        setState(() {
+          _vehicles = vehicles;
+          _isLoadingVehicles = false;
+        });
+      } else {
+
+        setState(() {
+          _vehicles = [];
+          _isLoadingVehicles = false;
+        });
+      }
+    } catch (e) {
+
+      setState(() {
+        _vehicles = [];
+        _isLoadingVehicles = false;
+      });
+    }
   }
   
   final List<String> _provinces = [
@@ -100,6 +150,8 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
     _addressController.dispose();
     _cityController.dispose();
     _descriptionController.dispose();
+    _vehicleNumberController.dispose();
+    _vehicleModelController.dispose();
     super.dispose();
   }
 
@@ -424,6 +476,13 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
                     _buildSectionTitle('Documents'),
                     SizedBox(height: 12),
                     _buildDocumentsCard(userProfile),
+
+                    SizedBox(height: 32),
+
+                    // Vehicles Section
+                    _buildSectionTitle('Vehicles'),
+                    SizedBox(height: 12),
+                    _buildVehiclesSection(),
 
                     SizedBox(height: 40),
 
@@ -1478,6 +1537,711 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  // ==================== VEHICLE MANAGEMENT METHODS ====================
+
+  Widget _buildVehiclesSection() {
+    return Container(
+      padding: EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with Add button
+          Row(
+            children: [
+              Icon(Icons.directions_car, color: AppColors.primary, size: 24),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'My Vehicles',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              if (!_isAddingVehicle)
+                ElevatedButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _isAddingVehicle = true;
+                      _editingVehicleId = null;
+                      _vehicleNumberController.clear();
+                      _vehicleModelController.clear();
+                      _selectedVehicleType = 'Harvester';
+                      _vehicleImage = null;
+                    });
+                  },
+                  label: Text('Add Vehicle'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          SizedBox(height: 16),
+          
+          // Add/Edit Vehicle Form
+          if (_isAddingVehicle) ...[
+            _buildVehicleForm(),
+            SizedBox(height: 16),
+          ],
+          
+          // Loading indicator
+          if (_isLoadingVehicles)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          // Vehicle List
+          else if (_vehicles.isEmpty && !_isAddingVehicle)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.directions_car_outlined,
+                      size: 64,
+                      color: Colors.grey.shade300,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'No vehicles added yet',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 16,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Add your vehicles to get started',
+                      style: TextStyle(
+                        color: Colors.grey.shade400,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: _vehicles.length,
+              separatorBuilder: (context, index) => SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final vehicle = _vehicles[index];
+                return _buildVehicleCard(vehicle, index);
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleForm() {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.edit, color: AppColors.primary, size: 20),
+              SizedBox(width: 8),
+              Text(
+                _editingVehicleId != null ? 'Edit Vehicle' : 'Add New Vehicle',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
+                ),
+              ),
+              Spacer(),
+              IconButton(
+                icon: Icon(Icons.close, color: Colors.grey),
+                onPressed: () {
+                  setState(() {
+                    _isAddingVehicle = false;
+                    _editingVehicleId = null;
+                    _vehicleNumberController.clear();
+                    _vehicleModelController.clear();
+                    _vehicleImage = null;
+                  });
+                },
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          
+          // Vehicle Type Dropdown
+          DropdownButtonFormField<String>(
+            value: _selectedVehicleType,
+            decoration: InputDecoration(
+              labelText: 'Vehicle Type',
+              prefixIcon: Icon(Icons.category, color: AppColors.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+            items: _vehicleTypes.map((String type) {
+              return DropdownMenuItem<String>(
+                value: type,
+                child: Text(type),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedVehicleType = value;
+                });
+              }
+            },
+          ),
+          SizedBox(height: 16),
+          
+          // Vehicle Number
+          TextFormField(
+            controller: _vehicleNumberController,
+            decoration: InputDecoration(
+              labelText: 'Registration Number',
+              hintText: 'e.g., ABC-123',
+              prefixIcon: Icon(Icons.pin, color: AppColors.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+            textCapitalization: TextCapitalization.characters,
+            maxLength: 20,
+          ),
+          SizedBox(height: 16),
+          
+          // Vehicle Model
+          TextFormField(
+            controller: _vehicleModelController,
+            decoration: InputDecoration(
+              labelText: 'Model',
+              hintText: 'e.g., John Deere 5075E',
+              prefixIcon: Icon(Icons.precision_manufacturing, color: AppColors.primary),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: Colors.grey.shade300),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.primary, width: 2),
+              ),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+          SizedBox(height: 16),
+          
+          // Vehicle Image
+          GestureDetector(
+            onTap: _pickVehicleImage,
+            child: Container(
+              height: 150,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _vehicleImage != null 
+                    ? AppColors.primary 
+                    : Colors.grey.shade300,
+                  width: 2,
+                ),
+              ),
+              child: _vehicleImage != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: FutureBuilder<String>(
+                      future: ImageUtils.convertImageToBase64(_vehicleImage!),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          final imageBytes = ImageUtils.decodeBase64Image(snapshot.data!);
+                          if (imageBytes != null) {
+                            return Stack(
+                              children: [
+                                Image.memory(
+                                  imageBytes,
+                                  width: double.infinity,
+                                  height: 150,
+                                  fit: BoxFit.cover,
+                                ),
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: CircleAvatar(
+                                    backgroundColor: Colors.white,
+                                    child: Icon(Icons.edit, color: AppColors.primary),
+                                  ),
+                                ),
+                              ],
+                            );
+                          }
+                        }
+                        return Center(child: CircularProgressIndicator());
+                      },
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate,
+                        size: 48,
+                        color: Colors.grey.shade400,
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Tap to upload vehicle photo',
+                        style: TextStyle(
+                          color: Colors.grey.shade600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+            ),
+          ),
+          SizedBox(height: 16),
+          
+          // Save Button
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () {
+                    setState(() {
+                      _isAddingVehicle = false;
+                      _editingVehicleId = null;
+                      _vehicleNumberController.clear();
+                      _vehicleModelController.clear();
+                      _vehicleImage = null;
+                    });
+                  },
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    side: BorderSide(color: Colors.grey.shade400),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text('Cancel'),
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: _saveVehicle,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Text(_editingVehicleId != null ? 'Update' : 'Save'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVehicleCard(Map<String, dynamic> vehicle, int index) {
+    final isEditing = _editingVehicleId == vehicle['vehicleId'];
+    
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isEditing ? AppColors.primary : Colors.grey.shade300,
+          width: isEditing ? 2 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          // Vehicle Image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Builder(
+              builder: (context) {
+                final imageBytes = ImageUtils.decodeBase64Image(vehicle['vehicleImage']);
+                if (imageBytes != null) {
+                  return Image.memory(
+                    imageBytes,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                  );
+                }
+                return Container(
+                  width: 80,
+                  height: 80,
+                  color: Colors.grey.shade300,
+                  child: Icon(Icons.directions_car, size: 40, color: Colors.grey),
+                );
+              },
+            ),
+          ),
+          SizedBox(width: 16),
+          
+          // Vehicle Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  vehicle['vehicleType'] ?? 'Unknown',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  vehicle['model'] ?? 'N/A',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 4),
+                Row(
+                  children: [
+                    Icon(Icons.pin, size: 14, color: Colors.grey),
+                    SizedBox(width: 4),
+                    Text(
+                      vehicle['registrationNumber'] ?? 'N/A',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          
+          // Action Buttons
+          Column(
+            children: [
+              IconButton(
+                icon: Icon(Icons.edit, color: AppColors.primary, size: 20),
+                onPressed: () => _editVehicle(vehicle),
+                tooltip: 'Edit',
+              ),
+              IconButton(
+                icon: Icon(Icons.delete, color: AppColors.error, size: 20),
+                onPressed: () => _confirmDeleteVehicle(vehicle, index),
+                tooltip: 'Delete',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickVehicleImage() async {
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? pickedFile = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _vehicleImage = pickedFile;
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error picking image: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _saveVehicle() async {
+    // Validate inputs
+    if (_vehicleNumberController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter registration number'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_vehicleModelController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please enter vehicle model'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_vehicleImage == null && _editingVehicleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please upload vehicle photo'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      setState(() => _isLoading = true);
+
+      // Convert image to Base64
+      String? base64Image;
+      if (_vehicleImage != null) {
+        base64Image = await ImageUtils.convertImageToBase64(_vehicleImage!);
+      } else if (_editingVehicleId != null) {
+        // Use existing image if editing and no new image selected
+        final existingVehicle = _vehicles.firstWhere(
+          (v) => v['vehicleId'] == _editingVehicleId,
+        );
+        base64Image = existingVehicle['vehicleImage'];
+      }
+
+      final vehicleData = {
+        'vehicleId': _editingVehicleId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        'vehicleType': _selectedVehicleType,
+        'registrationNumber': _vehicleNumberController.text.trim(),
+        'model': _vehicleModelController.text.trim(),
+        'vehicleImage': base64Image,
+      };
+
+      if (_editingVehicleId != null) {
+        // Update existing vehicle
+        final index = _vehicles.indexWhere((v) => v['vehicleId'] == _editingVehicleId);
+        if (index != -1) {
+          setState(() {
+            _vehicles[index] = vehicleData;
+          });
+        }
+      } else {
+        // Add new vehicle
+        setState(() {
+          _vehicles.add(vehicleData);
+        });
+      }
+
+      // Clear form
+      setState(() {
+        _isAddingVehicle = false;
+        _editingVehicleId = null;
+        _vehicleNumberController.clear();
+        _vehicleModelController.clear();
+        _vehicleImage = null;
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _editingVehicleId != null 
+              ? '✅ Vehicle updated successfully!' 
+              : '✅ Vehicle added successfully!',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // TODO: Send to backend
+      // You can call the API here to save vehicles to backend
+      // await _saveVehiclesToBackend();
+      
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _editVehicle(Map<String, dynamic> vehicle) {
+    setState(() {
+      _isAddingVehicle = true;
+      _editingVehicleId = vehicle['vehicleId'];
+      _selectedVehicleType = vehicle['vehicleType'] ?? 'Harvester';
+      _vehicleNumberController.text = vehicle['registrationNumber'] ?? '';
+      _vehicleModelController.text = vehicle['model'] ?? '';
+      // Note: We keep _vehicleImage as null when editing unless user picks a new one
+    });
+
+    // Scroll to form
+    Future.delayed(Duration(milliseconds: 100), () {
+      Scrollable.ensureVisible(
+        context,
+        duration: Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  void _confirmDeleteVehicle(Map<String, dynamic> vehicle, int index) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.orange),
+            SizedBox(width: 12),
+            Expanded(child: Text('Delete Vehicle?')),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete this vehicle?'),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    vehicle['vehicle_type'] ?? vehicle['type'] ?? 'Unknown',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text(vehicle['model'] ?? 'N/A'),
+                  Text(
+                    vehicle['registration_number'] ?? vehicle['number'] ?? 'N/A',
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteVehicle(index);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+            ),
+            child: Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteVehicle(int index) async {
+    try {
+      setState(() {
+        _vehicles.removeAt(index);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Vehicle deleted successfully!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      // TODO: Send delete request to backend
+      // await _deleteVehicleFromBackend(vehicleId);
+      
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error deleting vehicle: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 }

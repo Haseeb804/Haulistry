@@ -19,6 +19,7 @@ class Service {
   final bool transportationIncluded;
   final int totalBookings;
   final double rating;
+  final String? serviceImages; // JSON array string of base64 images
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -42,6 +43,7 @@ class Service {
     this.transportationIncluded = false,
     this.totalBookings = 0,
     this.rating = 0.0,
+    this.serviceImages,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -72,6 +74,7 @@ class Service {
       transportationIncluded: json['transportationIncluded'] as bool? ?? false,
       totalBookings: json['totalBookings'] as int? ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+      serviceImages: json['serviceImages'] as String?,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
@@ -103,6 +106,7 @@ class Service {
       'transportationIncluded': transportationIncluded,
       'totalBookings': totalBookings,
       'rating': rating,
+      'serviceImages': serviceImages,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -129,6 +133,7 @@ class Service {
     bool? transportationIncluded,
     int? totalBookings,
     double? rating,
+    String? serviceImages,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -152,6 +157,7 @@ class Service {
       transportationIncluded: transportationIncluded ?? this.transportationIncluded,
       totalBookings: totalBookings ?? this.totalBookings,
       rating: rating ?? this.rating,
+      serviceImages: serviceImages ?? this.serviceImages,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

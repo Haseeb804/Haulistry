@@ -142,6 +142,17 @@ class UpdateProviderProfileInput:
     cnic_back_image: Optional[str] = None
     license_image: Optional[str] = None
     license_number: Optional[str] = None
+    # Vehicles (JSON string of vehicle array)
+    vehicles: Optional[str] = None
+
+
+@strawberry.input
+class VehicleOnboardingInput:
+    """Input for vehicle during onboarding process"""
+    type: str  # Harvester, Tractor, Crane, Loader riksha
+    number: str  # Registration number
+    model: str
+    image: str  # Base64 image
 
 
 @strawberry.input
@@ -180,9 +191,9 @@ class Vehicle:
     provider_uid: str
     name: str
     vehicle_type: str
-    make: str
+    make: Optional[str] = None
     model: str
-    year: int
+    year: Optional[int] = None
     registration_number: str
     capacity: Optional[str] = None
     condition: str = "Good"
@@ -221,6 +232,8 @@ class Service:
     description: Optional[str] = None
     service_area: Optional[str] = None
     min_booking_duration: Optional[str] = None
+    # Images (Base64 encoded)
+    service_images: Optional[str] = None  # JSON string array of base64 images
     # Availability
     is_active: bool = True
     available_days: Optional[str] = None
@@ -308,6 +321,8 @@ class AddServiceInput:
     description: Optional[str] = None
     service_area: Optional[str] = None
     min_booking_duration: Optional[str] = None
+    # Images (Base64 encoded)
+    service_images: Optional[str] = None  # JSON string array of base64 images
     # Availability
     is_active: bool = True
     available_days: Optional[str] = None
@@ -332,6 +347,8 @@ class UpdateServiceInput:
     description: Optional[str] = None
     service_area: Optional[str] = None
     min_booking_duration: Optional[str] = None
+    # Images (Base64 encoded)
+    service_images: Optional[str] = None  # JSON string array of base64 images
     # Availability
     is_active: Optional[bool] = None
     available_days: Optional[str] = None

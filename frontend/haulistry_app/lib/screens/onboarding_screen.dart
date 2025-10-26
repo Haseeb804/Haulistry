@@ -54,7 +54,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await prefs.setBool(AppConstants.keyOnboardingCompleted, true);
     
     if (mounted) {
-      context.go('/role-selection');
+      context.go('/signup');
     }
   }
 

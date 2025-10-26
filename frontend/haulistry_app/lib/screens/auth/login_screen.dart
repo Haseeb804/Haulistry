@@ -40,7 +40,16 @@ class _LoginScreenState extends State<LoginScreen> {
         if (userType == 'seeker') {
           context.go('/seeker/dashboard');
         } else {
-          context.go('/provider/dashboard');
+          // Check if provider has uploaded documents
+          final userProfile = authService.userProfile;
+          final documentsUploaded = userProfile?['documentsUploaded'] ?? false;
+          
+          if (documentsUploaded) {
+            context.go('/provider/dashboard');
+          } else {
+            // Redirect to document upload if not uploaded yet
+            context.go('/provider/document-upload');
+          }
         }
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -204,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () => context.push('/role-selection'),
+                      onPressed: () => context.push('/signup'),
                       child: Text(
                         'Sign Up',
                         style: TextStyle(
