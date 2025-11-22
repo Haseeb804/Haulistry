@@ -906,6 +906,11 @@ class GraphQLService {
     String? description,
     String? serviceArea,
     String? minBookingDuration,
+    double? latitude,
+    double? longitude,
+    String? fullAddress,
+    String? city,
+    String? province,
     String? serviceImages,  // JSON string array of base64 images
     bool isActive = true,
     String? availableDays,
@@ -928,6 +933,11 @@ class GraphQLService {
             pricePerDay
             pricePerService
             description
+            latitude
+            longitude
+            fullAddress
+            city
+            province
             serviceImages
             isActive
             operatorIncluded
@@ -953,6 +963,11 @@ class GraphQLService {
             if (description != null) 'description': description,
             if (serviceArea != null) 'serviceArea': serviceArea,
             if (minBookingDuration != null) 'minBookingDuration': minBookingDuration,
+            if (latitude != null) 'latitude': latitude,
+            if (longitude != null) 'longitude': longitude,
+            if (fullAddress != null) 'fullAddress': fullAddress,
+            if (city != null) 'city': city,
+            if (province != null) 'province': province,
             if (serviceImages != null) 'serviceImages': serviceImages,
             'isActive': isActive,
             if (availableDays != null) 'availableDays': availableDays,
@@ -988,6 +1003,11 @@ class GraphQLService {
           description
           serviceArea
           minBookingDuration
+          latitude
+          longitude
+          fullAddress
+          city
+          province
           isActive
           availableDays
           availableHours

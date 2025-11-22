@@ -1,12 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_constants.dart';
 import '../../utils/image_utils.dart';
 import '../../providers/seeker_preferences_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/auth_service.dart';
+import '../../blocs/seeker_preferences/seeker_preferences_bloc.dart';
+import '../../blocs/seeker_preferences/seeker_preferences_event.dart';
+import '../../blocs/seeker_preferences/seeker_preferences_state.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_state.dart';
 
 class SeekerDashboardScreen extends StatefulWidget {
   const SeekerDashboardScreen({super.key});
@@ -36,10 +42,17 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
   }
 
   Future<void> _checkPreferences() async {
+    // Using BLoC for state management
     final authService = context.read<AuthService>();
     final authProvider = context.read<AuthProvider>();
-    final preferencesProvider = context.read<SeekerPreferencesProvider>();
     
+    // Load preferences using BLoC
+    context.read<SeekerPreferencesBloc>().add(
+      LoadPreferencesRequested(userId: authProvider.currentUser?.id ?? 'user_123'),
+    );
+    
+    // Keep old provider call for backward compatibility during migration
+    final preferencesProvider = context.read<SeekerPreferencesProvider>();
     await preferencesProvider.loadPreferences(
       authProvider.currentUser?.id ?? 'user_123',
       authService: authService,
@@ -177,7 +190,7 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
               }
               
               return Container(
-                margin: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Colors.orange.shade400, Colors.deepOrange.shade400],
@@ -197,7 +210,7 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                     onTap: () => context.push('/seeker/service-preferences'),
                     borderRadius: BorderRadius.circular(15),
                     child: Padding(
-                      padding: EdgeInsets.all(16),
+                      padding: EdgeInsets.all(12),
                       child: Row(
                         children: [
                           Container(
@@ -245,7 +258,7 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
           // Content
           Expanded(
             child: SingleChildScrollView(
-              padding: EdgeInsets.all(20),
+              padding: EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -258,13 +271,13 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: 12),
                   GridView.count(
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
                     crossAxisCount: 2,
-                    mainAxisSpacing: 16,
-                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
                     childAspectRatio: 0.85,
                     children: [
                       _buildServiceCard(
@@ -298,7 +311,7 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                     ],
                   ),
 
-                  SizedBox(height: 30),
+                  SizedBox(height: 24),
 
                   // Recent Bookings Section
                   Row(
@@ -343,7 +356,7 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                     Icons.local_shipping_rounded,
                   ),
 
-                  SizedBox(height: 30),
+                  SizedBox(height: 24),
 
                   // Quick Actions
                   Text(
@@ -354,7 +367,7 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                       color: AppColors.textPrimary,
                     ),
                   ),
-                  SizedBox(height: 16),
+                  SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
@@ -377,7 +390,7 @@ class _SeekerDashboardScreenState extends State<SeekerDashboardScreen> {
                     ],
                   ),
 
-                  SizedBox(height: 20),
+                  SizedBox(height: 16),
                 ],
               ),
             ),

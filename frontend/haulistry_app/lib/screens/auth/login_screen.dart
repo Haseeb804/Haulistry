@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import '../../services/auth_service.dart';
+import '../../blocs/auth/auth_bloc.dart';
+import '../../blocs/auth/auth_event.dart';
+import '../../blocs/auth/auth_state.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/app_constants.dart';
 import '../../widgets/custom_text_field.dart';
@@ -28,8 +32,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      final authService = context.read<AuthService>();
+      // Dispatch login event to BLoC
+      context.read<AuthBloc>().add(AuthLoginRequested(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      ));
       
+      // Keep AuthService call for backward compatibility during migration
+      final authService = context.read<AuthService>();
       final success = await authService.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,

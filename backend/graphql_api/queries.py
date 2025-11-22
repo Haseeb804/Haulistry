@@ -535,4 +535,55 @@ class Query:
             print(f"❌ Error fetching active provider services: {str(e)}\n")
             raise Exception(f"Failed to fetch active provider services: {str(e)}")
 
+    @strawberry.field
+    async def nearby_services(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 50,
+        category: Optional[str] = None,
+        limit: int = 50
+    ) -> List['Service']:
+        """
+        Find services near a location using geospatial search
+        Returns active services within the specified radius
+        
+        Args:
+            latitude: Center point latitude
+            longitude: Center point longitude
+            radius_km: Search radius in kilometers (default: 50)
+            category: Optional filter by service category
+            limit: Maximum number of results (default: 50)
+            
+        Returns:
+            List of Service objects with distance information
+        """
+        print(f"\n{'='*60}")
+        print(f"🗺️  NEARBY_SERVICES QUERY CALLED")
+        print(f"   Location: ({latitude}, {longitude})")
+        print(f"   Radius: {radius_km}km")
+        if category:
+            print(f"   Category: {category}")
+        print(f"{'='*60}\n")
+        
+        try:
+            from repositories.user_repository import UserRepository
+            from .types import Service
+            
+            user_repo = UserRepository()
+            services = user_repo.get_nearby_services(
+                latitude=latitude,
+                longitude=longitude,
+                radius_km=radius_km,
+                service_category=category,
+                limit=limit
+            )
+            
+            print(f"✅ Found {len(services)} nearby services\n")
+            
+            return [Service(**service) for service in services]
+            
+        except Exception as e:
+            print(f"❌ Error fetching nearby services: {str(e)}\n")
+            raise Exception(f"Failed to fetch nearby services: {str(e)}")
 

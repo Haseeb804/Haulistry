@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../utils/app_colors.dart';
 import '../../providers/service_provider.dart';
 import '../../models/service_model.dart';
+import '../../blocs/service/service_bloc.dart';
+import '../../blocs/service/service_event.dart';
+import '../../blocs/service/service_state.dart';
 
 class ServicesManagementScreen extends StatefulWidget {
   const ServicesManagementScreen({super.key});
@@ -26,6 +30,10 @@ class _ServicesManagementScreenState extends State<ServicesManagementScreen> {
 
   Future<void> _loadServices() async {
     if (!mounted) return;
+    // Load services using BLoC
+    context.read<ServiceBloc>().add(LoadServicesRequested());
+    
+    // Keep Provider call for backward compatibility
     final serviceProvider = Provider.of<ServiceProvider>(context, listen: false);
     await serviceProvider.loadServices();
   }
@@ -47,13 +55,27 @@ class _ServicesManagementScreenState extends State<ServicesManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey.shade50,
-      body: Consumer<ServiceProvider>(
-        builder: (context, serviceProvider, child) {
-
+      body: BlocBuilder<ServiceBloc, ServiceState>(
+        builder: (context, state) {
+          // Also keep Provider for backward compatibility
+          final serviceProvider = Provider.of<ServiceProvider>(context);
           
-          final filteredServices = _getFilteredServices(serviceProvider.services);
-
+          // Get services from BLoC state or fallback to Provider
+          List<Service> services = [];
+          bool isLoading = false;
           
+          if (state is ServiceLoaded) {
+            services = state.services;
+          } else if (state is ServiceLoading) {
+            isLoading = true;
+          } else {
+            // Fallback to Provider
+            services = serviceProvider.services;
+            isLoading = serviceProvider.isLoading;
+          }
+          
+          final filteredServices = _getFilteredServices(services);
+
           return Column(
             children: [
               // Header

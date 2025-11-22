@@ -3,11 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
+import '../../services/pricing_calculator.dart';
 import '../../providers/service_provider.dart';
 import '../../models/service_model.dart';
+import '../common/platform_location_picker.dart';
 
 class AddEditServiceScreen extends StatefulWidget {
   final String? serviceId;
@@ -41,6 +44,15 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
   String? _selectedProvince;
   List<XFile> _serviceImages = [];
   List<String> _selectedFeatures = [];
+  
+  // Location data for Google Maps
+  LatLng? _serviceLocation;
+  String _serviceAddress = '';
+  double? _serviceLatitude;
+  double? _serviceLongitude;
+  
+  // Pricing calculator data
+  PriceBreakdown? _calculatedPricing;
   
   // Service Categories based on vehicle type
   Map<String, List<String>> _vehicleServiceTypes = {
@@ -677,14 +689,29 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
 
             SizedBox(height: 24),
 
-            // Pricing
-            Text(
-              'Pricing',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
+            // Pricing with Smart Calculator
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Pricing',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _showPriceCalculator,
+                  icon: Icon(Icons.calculate, size: 18),
+                  label: Text('Smart Pricing'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: BorderSide(color: AppColors.primary),
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 12),
             Container(
@@ -714,6 +741,8 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
                       ),
                       filled: true,
                       fillColor: Colors.grey.shade50,
+                      helperText: 'Use Smart Pricing button for suggestions',
+                      helperStyle: TextStyle(fontSize: 11),
                     ),
                     validator: (value) {
                       if (value?.isEmpty ?? true) return 'Required';
@@ -747,7 +776,7 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
 
             SizedBox(height: 24),
 
-            // Location
+            // Location (Google Maps Integration)
             Text(
               'Service Location',
               style: TextStyle(
@@ -772,47 +801,82 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
               ),
               child: Column(
                 children: [
-                  TextFormField(
-                    controller: _cityController,
-                    decoration: InputDecoration(
-                      labelText: 'City',
-                      hintText: 'e.g., Faisalabad',
-                      prefixIcon: Icon(Icons.location_city, color: AppColors.primary),
-                      border: OutlineInputBorder(
+                  InkWell(
+                    onTap: () => _openLocationPicker(),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        border: Border.all(
+                          color: _serviceAddress.isEmpty 
+                            ? Colors.grey.shade400 
+                            : AppColors.primary,
+                          width: 1,
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                    ),
-                    validator: (value) {
-                      if (value?.isEmpty ?? true) return 'Required';
-                      return null;
-                    },
-                  ),
-                  SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedProvince,
-                    decoration: InputDecoration(
-                      labelText: 'Province',
-                      prefixIcon: Icon(Icons.map, color: AppColors.primary),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.location_on,
+                            color: _serviceAddress.isEmpty 
+                              ? Colors.grey.shade600 
+                              : AppColors.primary,
+                            size: 24,
+                          ),
+                          SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _serviceAddress.isEmpty 
+                                    ? 'Tap to select location on map' 
+                                    : 'Selected Location',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (_serviceAddress.isNotEmpty) ...[
+                                  SizedBox(height: 4),
+                                  Text(
+                                    _serviceAddress,
+                                    style: TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.chevron_right,
+                            color: Colors.grey.shade400,
+                          ),
+                        ],
                       ),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
                     ),
-                    items: _provinces.map((province) {
-                      return DropdownMenuItem(
-                        value: province,
-                        child: Text(province),
-                      );
-                    }).toList(),
-                    onChanged: (value) => setState(() => _selectedProvince = value),
-                    validator: (value) {
-                      if (value == null) return 'Please select province';
-                      return null;
-                    },
                   ),
+                  if (_serviceAddress.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(top: 8, left: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Location is required',
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1300,15 +1364,20 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
 
                 // Location
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(Icons.location_on, color: AppColors.primary, size: 20),
                     SizedBox(width: 8),
-                    Text(
-                      '${_cityController.text.isEmpty ? "City" : _cityController.text}, ${_selectedProvince ?? "Province"}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: AppColors.textPrimary,
-                        fontWeight: FontWeight.w500,
+                    Expanded(
+                      child: Text(
+                        _serviceAddress.isNotEmpty 
+                            ? _serviceAddress 
+                            : '${_cityController.text.isEmpty ? "City" : _cityController.text}, ${_selectedProvince ?? "Province"}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
                   ],
@@ -1476,6 +1545,15 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
           );
           return;
         }
+        if (_serviceAddress.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Please select service location on map'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
         if (_serviceImages.isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1491,6 +1569,216 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
       // Submit service
       _submitService();
     }
+  }
+
+  // Open Google Maps location picker
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlatformLocationPicker(
+          initialLocation: _serviceLocation,
+          initialAddress: _serviceAddress,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _serviceLocation = result['location'] as LatLng;
+        _serviceAddress = result['address'] as String;
+        _serviceLatitude = result['latitude'] as double;
+        _serviceLongitude = result['longitude'] as double;
+        
+        // Auto-fill city from address if city controller is empty
+        if (_cityController.text.isEmpty) {
+          // Extract city from address (simple approach)
+          final parts = _serviceAddress.split(',');
+          if (parts.length >= 2) {
+            _cityController.text = parts[parts.length - 2].trim();
+          }
+        }
+      });
+    }
+  }
+
+  // Show pricing calculator dialog
+  void _showPriceCalculator() {
+    if (_selectedVehicle == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Please select a vehicle first'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.calculate, color: AppColors.primary),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Smart Price Calculator',
+                style: TextStyle(fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Based on your ${_selectedVehicle!['vehicleType']}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+                SizedBox(height: 20),
+                
+                // Calculate suggested pricing
+                Builder(
+                  builder: (context) {
+                    final vehicleType = _selectedVehicle!['vehicleType'] as String;
+                    final priceRange = PricingCalculator.getSuggestedPriceRange(
+                      serviceType: vehicleType,
+                      durationHours: 8.0,
+                      distanceKm: 0.0,
+                    );
+                    
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildPriceCard(
+                          'Minimum Rate',
+                          priceRange['minimum']!,
+                          'Competitive pricing',
+                          Colors.blue,
+                        ),
+                        SizedBox(height: 12),
+                        _buildPriceCard(
+                          'Recommended',
+                          priceRange['recommended']!,
+                          'Balanced pricing',
+                          Colors.green,
+                        ),
+                        SizedBox(height: 12),
+                        _buildPriceCard(
+                          'Maximum Rate',
+                          priceRange['maximum']!,
+                          'Premium pricing',
+                          Colors.orange,
+                        ),
+                        SizedBox(height: 20),
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.info_outline, size: 20, color: AppColors.primary),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Tap a price to auto-fill your rate',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text('Close'),
+        ),
+      ],
+    ));
+  }
+
+  Widget _buildPriceCard(String title, double price, String subtitle, Color color) {
+    return InkWell(
+      onTap: () {
+        _pricePerHourController.text = price.toStringAsFixed(0);
+        _pricePerDayController.text = (price * 8).toStringAsFixed(0); // Assume 8 hours per day
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Price updated to PKR ${price.toStringAsFixed(0)}/hour'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(color: color.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(8),
+          color: color.withOpacity(0.05),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.monetization_on, color: color, size: 24),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'PKR ${price.toStringAsFixed(0)}/hour',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: color.withOpacity(0.5)),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _pickServiceImages() async {
@@ -1532,11 +1820,27 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final serviceProvider = Provider.of<ServiceProvider>(context, listen: false);
-      final uid = authService.userProfile?['uid'];
+      
+      // Try to get UID from multiple sources
+      String? uid = authService.userProfile?['uid'];
+      
+      // Fallback to Firebase currentUser if profile is not loaded
+      if (uid == null && authService.currentUser != null) {
+        uid = authService.currentUser!.uid;
+        print('Using Firebase UID: $uid');
+      }
+      
+      // Try to reload user profile if still null
+      if (uid == null) {
+        await authService.loadUserProfile();
+        uid = authService.userProfile?['uid'];
+      }
 
       if (uid == null) {
-        throw Exception('User not logged in');
+        throw Exception('User not logged in. Please log out and log in again.');
       }
+
+      print('Creating service for user: $uid');
 
       // Convert images to base64
       List<String> base64Images = [];
@@ -1567,6 +1871,12 @@ class _AddEditServiceScreenState extends State<AddEditServiceScreen> {
         operatorIncluded: _selectedFeatures.contains('operator'),
         fuelIncluded: _selectedFeatures.contains('fuel'),
         transportationIncluded: false,
+        // Location fields from Google Maps
+        latitude: _serviceLatitude,
+        longitude: _serviceLongitude,
+        fullAddress: _serviceAddress.isNotEmpty ? _serviceAddress : serviceArea,
+        city: _cityController.text.isNotEmpty ? _cityController.text : null,
+        province: _selectedProvince,
       );
 
       // Add service with images

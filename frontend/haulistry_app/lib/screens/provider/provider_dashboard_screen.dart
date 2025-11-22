@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
 import '../../providers/service_provider.dart';
+import '../../blocs/service/service_bloc.dart';
+import '../../blocs/service/service_event.dart';
+import '../../blocs/service/service_state.dart';
 
 class ProviderDashboardScreen extends StatefulWidget {
   const ProviderDashboardScreen({super.key});
@@ -20,13 +24,22 @@ class _ProviderDashboardScreenState extends State<ProviderDashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Use addPostFrameCallback to avoid calling setState during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
+    // Load services using BLoC
+    context.read<ServiceBloc>().add(LoadServicesRequested());
+    
+    // Keep Provider call for backward compatibility
     final serviceProvider = Provider.of<ServiceProvider>(context, listen: false);
     await serviceProvider.loadServices();
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override

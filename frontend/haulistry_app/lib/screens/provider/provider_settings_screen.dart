@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../utils/app_colors.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/auth_service.dart';
+import '../../blocs/theme/theme_bloc.dart';
+import '../../blocs/theme/theme_event.dart';
+import '../../blocs/theme/theme_state.dart';
 
 class ProviderSettingsScreen extends StatefulWidget {
   const ProviderSettingsScreen({super.key});
@@ -196,14 +200,19 @@ class _ProviderSettingsScreenState extends State<ProviderSettingsScreen> {
                   _buildSectionTitle('App Settings'),
                   SizedBox(height: 12),
                   _buildSettingsCard([
-                    Consumer<ThemeProvider>(
-                      builder: (context, themeProvider, _) {
+                    BlocBuilder<ThemeBloc, ThemeState>(
+                      builder: (context, state) {
+                        final isDarkMode = state is ThemeLoaded ? state.isDarkMode : false;
                         return _buildSwitchTile(
                           'Dark Mode',
                           'Enable dark theme',
                           Icons.dark_mode,
-                          themeProvider.isDarkMode,
-                          (value) => themeProvider.setDarkMode(value),
+                          isDarkMode,
+                          (value) {
+                            context.read<ThemeBloc>().add(ThemeSetRequested(isDarkMode: value));
+                            // Keep Provider call for backward compatibility
+                            context.read<ThemeProvider>().setDarkMode(value);
+                          },
                         );
                       },
                     ),

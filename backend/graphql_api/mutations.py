@@ -936,7 +936,12 @@ class Mutation:
                 description=input.description,
                 service_area=input.service_area,
                 min_booking_duration=input.min_booking_duration,
-                service_images=input.service_images,  # Added service images
+                latitude=input.latitude,
+                longitude=input.longitude,
+                full_address=input.full_address,
+                city=input.city,
+                province=input.province,
+                service_images=input.service_images,
                 is_active=input.is_active,
                 available_days=input.available_days,
                 available_hours=input.available_hours,

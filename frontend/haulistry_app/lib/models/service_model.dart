@@ -11,6 +11,12 @@ class Service {
   final String? description;
   final String? serviceArea;
   final String? minBookingDuration;
+  // Location fields (Google Maps Integration)
+  final double? latitude;
+  final double? longitude;
+  final String? fullAddress;
+  final String? city;
+  final String? province;
   final bool isActive;
   final String? availableDays; // JSON string
   final String? availableHours;
@@ -20,6 +26,7 @@ class Service {
   final int totalBookings;
   final double rating;
   final String? serviceImages; // JSON array string of base64 images
+  final double? distanceKm; // Distance from search location (for nearby queries)
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -35,6 +42,11 @@ class Service {
     this.description,
     this.serviceArea,
     this.minBookingDuration,
+    this.latitude,
+    this.longitude,
+    this.fullAddress,
+    this.city,
+    this.province,
     this.isActive = true,
     this.availableDays,
     this.availableHours,
@@ -44,6 +56,7 @@ class Service {
     this.totalBookings = 0,
     this.rating = 0.0,
     this.serviceImages,
+    this.distanceKm,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
@@ -66,6 +79,11 @@ class Service {
       description: json['description'] as String?,
       serviceArea: json['serviceArea'] as String?,
       minBookingDuration: json['minBookingDuration'] as String?,
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
+      fullAddress: json['fullAddress'] as String?,
+      city: json['city'] as String?,
+      province: json['province'] as String?,
       isActive: json['isActive'] as bool? ?? true,
       availableDays: json['availableDays'] as String?,
       availableHours: json['availableHours'] as String?,
@@ -75,6 +93,7 @@ class Service {
       totalBookings: json['totalBookings'] as int? ?? 0,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
       serviceImages: json['serviceImages'] as String?,
+      distanceKm: (json['distanceKm'] as num?)?.toDouble(),
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
@@ -98,6 +117,11 @@ class Service {
       'description': description,
       'serviceArea': serviceArea,
       'minBookingDuration': minBookingDuration,
+      'latitude': latitude,
+      'longitude': longitude,
+      'fullAddress': fullAddress,
+      'city': city,
+      'province': province,
       'isActive': isActive,
       'availableDays': availableDays,
       'availableHours': availableHours,
@@ -107,6 +131,7 @@ class Service {
       'totalBookings': totalBookings,
       'rating': rating,
       'serviceImages': serviceImages,
+      'distanceKm': distanceKm,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -125,6 +150,11 @@ class Service {
     String? description,
     String? serviceArea,
     String? minBookingDuration,
+    double? latitude,
+    double? longitude,
+    String? fullAddress,
+    String? city,
+    String? province,
     bool? isActive,
     String? availableDays,
     String? availableHours,
@@ -134,6 +164,7 @@ class Service {
     int? totalBookings,
     double? rating,
     String? serviceImages,
+    double? distanceKm,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -149,6 +180,11 @@ class Service {
       description: description ?? this.description,
       serviceArea: serviceArea ?? this.serviceArea,
       minBookingDuration: minBookingDuration ?? this.minBookingDuration,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      fullAddress: fullAddress ?? this.fullAddress,
+      city: city ?? this.city,
+      province: province ?? this.province,
       isActive: isActive ?? this.isActive,
       availableDays: availableDays ?? this.availableDays,
       availableHours: availableHours ?? this.availableHours,
@@ -158,6 +194,7 @@ class Service {
       totalBookings: totalBookings ?? this.totalBookings,
       rating: rating ?? this.rating,
       serviceImages: serviceImages ?? this.serviceImages,
+      distanceKm: distanceKm ?? this.distanceKm,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -1089,6 +1089,12 @@ class UserRepository:
                 s.description = $description,
                 s.service_area = $service_area,
                 s.min_booking_duration = $min_booking_duration,
+                s.latitude = $latitude,
+                s.longitude = $longitude,
+                s.full_address = $full_address,
+                s.city = $city,
+                s.province = $province,
+                s.service_images = $service_images,
                 s.is_active = $is_active,
                 s.available_days = $available_days,
                 s.available_hours = $available_hours,
@@ -1435,3 +1441,93 @@ class UserRepository:
             
             print(f"❌ Service not found\n")
             return False
+
+    def get_nearby_services(
+        self,
+        latitude: float,
+        longitude: float,
+        radius_km: float = 50,
+        service_category: Optional[str] = None,
+        limit: int = 50
+    ) -> List[Dict[str, Any]]:
+        """
+        Find services within a specified radius using Neo4j geospatial queries
+        
+        Args:
+            latitude: Center point latitude
+            longitude: Center point longitude
+            radius_km: Search radius in kilometers (default: 50km)
+            service_category: Optional filter by service category
+            limit: Maximum number of results (default: 50)
+        
+        Returns:
+            List of services with distance information, ordered by distance
+        """
+        with self.driver.session() as session:
+            print(f"\n{'='*60}")
+            print(f"🗺️  FINDING NEARBY SERVICES")
+            print(f"   Center: ({latitude}, {longitude})")
+            print(f"   Radius: {radius_km} km")
+            if service_category:
+                print(f"   Category Filter: {service_category}")
+            print(f"{'='*60}\n")
+            
+            # Build the query with optional category filter
+            category_filter = ""
+            if service_category:
+                category_filter = "AND s.service_category = $service_category"
+            
+            query = f"""
+            MATCH (s:Service)
+            WHERE s.latitude IS NOT NULL 
+              AND s.longitude IS NOT NULL
+              AND s.is_active = true
+              {category_filter}
+            WITH s, 
+                 point.distance(
+                     point({{latitude: s.latitude, longitude: s.longitude}}),
+                     point({{latitude: $lat, longitude: $lon}})
+                 ) AS distance
+            WHERE distance <= $radius_meters
+            RETURN s, distance
+            ORDER BY distance ASC
+            LIMIT $limit
+            """
+            
+            params = {
+                "lat": latitude,
+                "lon": longitude,
+                "radius_meters": radius_km * 1000,  # Convert km to meters
+                "limit": limit
+            }
+            
+            if service_category:
+                params["service_category"] = service_category
+            
+            result = session.run(query, params)
+            
+            services = []
+            for record in result:
+                service_data = dict(record["s"])
+                distance_meters = record["distance"]
+                
+                # Convert distance to kilometers
+                service_data["distance_km"] = round(distance_meters / 1000, 2)
+                
+                # Format datetime fields
+                if service_data.get('created_at'):
+                    if hasattr(service_data['created_at'], 'iso_format'):
+                        service_data['created_at'] = service_data['created_at'].iso_format()
+                    elif hasattr(service_data['created_at'], 'isoformat'):
+                        service_data['created_at'] = service_data['created_at'].isoformat()
+                        
+                if service_data.get('updated_at'):
+                    if hasattr(service_data['updated_at'], 'iso_format'):
+                        service_data['updated_at'] = service_data['updated_at'].iso_format()
+                    elif hasattr(service_data['updated_at'], 'isoformat'):
+                        service_data['updated_at'] = service_data['updated_at'].isoformat()
+                
+                services.append(service_data)
+            
+            print(f"✅ Found {len(services)} services within {radius_km}km\n")
+            return services

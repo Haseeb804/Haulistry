@@ -3,9 +3,11 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import '../../utils/app_colors.dart';
 import '../../utils/image_utils.dart';
 import '../../services/auth_service.dart';
+import '../common/platform_location_picker.dart';
 
 class EditProviderProfileScreen extends StatefulWidget {
   const EditProviderProfileScreen({super.key});
@@ -33,6 +35,12 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
   String? _selectedServiceType;
   bool _isUploadingImage = false;
   String? _profileImagePath;
+  
+  // Location data for Google Maps
+  LatLng? _profileLocation;
+  String _profileAddress = '';
+  double? _profileLatitude;
+  double? _profileLongitude;
   
   // Document images
   String? _cnicFrontImage;
@@ -432,43 +440,98 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
 
                     SizedBox(height: 24),
 
-                    // Location Information
+                    // Location Information (Google Maps Integration)
                     _buildSectionTitle('Location'),
                     SizedBox(height: 12),
-                    _buildFormCard([
-                      _buildTextField(
-                        controller: _addressController,
-                        label: 'Business Address',
-                        icon: Icons.location_on,
-                        maxLines: 2,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Please enter address';
-                          }
-                          return null;
-                        },
+                    Container(
+                      padding: EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 15,
+                            offset: Offset(0, 5),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 16),
-                      _buildTextField(
-                        controller: _cityController,
-                        label: 'City',
-                        icon: Icons.location_city,
-                        validator: (value) {
-                          if (value?.isEmpty ?? true) {
-                            return 'Please enter city';
-                          }
-                          return null;
-                        },
+                      child: Column(
+                        children: [
+                          InkWell(
+                            onTap: () => _openLocationPicker(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              padding: EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade50,
+                                border: Border.all(
+                                  color: _profileAddress.isEmpty 
+                                    ? Colors.grey.shade400 
+                                    : AppColors.primary,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.location_on,
+                                    color: _profileAddress.isEmpty 
+                                      ? Colors.grey.shade600 
+                                      : AppColors.primary,
+                                    size: 24,
+                                  ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _profileAddress.isEmpty 
+                                            ? 'Tap to select business location on map' 
+                                            : 'Business Location',
+                                          style: TextStyle(
+                                            color: Colors.grey.shade600,
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        if (_profileAddress.isNotEmpty) ...[
+                                          SizedBox(height: 4),
+                                          Text(
+                                            _profileAddress,
+                                            style: TextStyle(
+                                              color: AppColors.textPrimary,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            maxLines: 3,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ] else ...[
+                                          SizedBox(height: 4),
+                                          Text(
+                                            'Select your location for better visibility',
+                                            style: TextStyle(
+                                              color: Colors.grey.shade500,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  Icon(
+                                    Icons.chevron_right,
+                                    color: Colors.grey.shade400,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      SizedBox(height: 16),
-                      _buildDropdown(
-                        label: 'Province',
-                        icon: Icons.map,
-                        value: _selectedProvince,
-                        items: _provinces,
-                        onChanged: (value) => setState(() => _selectedProvince = value),
-                      ),
-                    ]),
+                    ),
 
                     SizedBox(height: 32),
 
@@ -2242,6 +2305,37 @@ class _EditProviderProfileScreenState extends State<EditProviderProfileScreen> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  // Open Google Maps location picker
+  Future<void> _openLocationPicker() async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PlatformLocationPicker(
+          initialLocation: _profileLocation,
+          initialAddress: _profileAddress,
+        ),
+      ),
+    );
+
+    if (result != null) {
+      setState(() {
+        _profileLocation = result['location'] as LatLng;
+        _profileAddress = result['address'] as String;
+        _profileLatitude = result['latitude'] as double;
+        _profileLongitude = result['longitude'] as double;
+        
+        // Auto-fill address and city controllers
+        _addressController.text = _profileAddress;
+        
+        // Extract city from address (simple approach)
+        final parts = _profileAddress.split(',');
+        if (parts.length >= 2) {
+          _cityController.text = parts[parts.length - 2].trim();
+        }
+      });
     }
   }
 }

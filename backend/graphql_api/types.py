@@ -217,6 +217,7 @@ class Vehicle:
 
 
 @strawberry.type
+@strawberry.type
 class Service:
     """Service type for GraphQL"""
     service_id: str
@@ -232,6 +233,12 @@ class Service:
     description: Optional[str] = None
     service_area: Optional[str] = None
     min_booking_duration: Optional[str] = None
+    # Location (Google Maps Integration)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    full_address: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
     # Images (Base64 encoded)
     service_images: Optional[str] = None  # JSON string array of base64 images
     # Availability
@@ -321,6 +328,12 @@ class AddServiceInput:
     description: Optional[str] = None
     service_area: Optional[str] = None
     min_booking_duration: Optional[str] = None
+    # Location (Google Maps Integration)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    full_address: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
     # Images (Base64 encoded)
     service_images: Optional[str] = None  # JSON string array of base64 images
     # Availability
@@ -347,6 +360,12 @@ class UpdateServiceInput:
     description: Optional[str] = None
     service_area: Optional[str] = None
     min_booking_duration: Optional[str] = None
+    # Location (Google Maps Integration)
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    full_address: Optional[str] = None
+    city: Optional[str] = None
+    province: Optional[str] = None
     # Images (Base64 encoded)
     service_images: Optional[str] = None  # JSON string array of base64 images
     # Availability

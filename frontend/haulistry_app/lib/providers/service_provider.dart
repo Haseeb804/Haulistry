@@ -85,6 +85,11 @@ class ServiceProvider extends ChangeNotifier {
         description: service.description,
         serviceArea: service.serviceArea,
         minBookingDuration: service.minBookingDuration,
+        latitude: service.latitude,
+        longitude: service.longitude,
+        fullAddress: service.fullAddress,
+        city: service.city,
+        province: service.province,
         serviceImages: serviceImages,  // Added service images parameter
         isActive: service.isActive,
         availableDays: service.availableDays,

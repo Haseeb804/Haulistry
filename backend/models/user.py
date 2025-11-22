@@ -398,6 +398,12 @@ class ServiceNode:
         description: Optional[str] = None,
         service_area: Optional[str] = None,  # Cities/regions served
         min_booking_duration: Optional[str] = None,  # e.g., "4 hours", "1 day"
+        # Location (Google Maps Integration)
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        full_address: Optional[str] = None,
+        city: Optional[str] = None,
+        province: Optional[str] = None,
         # Images
         service_images: Optional[str] = None,  # JSON string array of base64 images
         # Availability
@@ -428,6 +434,12 @@ class ServiceNode:
         self.description = description
         self.service_area = service_area
         self.min_booking_duration = min_booking_duration
+        # Location
+        self.latitude = latitude
+        self.longitude = longitude
+        self.full_address = full_address
+        self.city = city
+        self.province = province
         # Images
         self.service_images = service_images
         # Availability
@@ -461,6 +473,12 @@ class ServiceNode:
             "description": self.description,
             "service_area": self.service_area,
             "min_booking_duration": self.min_booking_duration,
+            # Location
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "full_address": self.full_address,
+            "city": self.city,
+            "province": self.province,
             # Images
             "service_images": self.service_images,
             # Availability
